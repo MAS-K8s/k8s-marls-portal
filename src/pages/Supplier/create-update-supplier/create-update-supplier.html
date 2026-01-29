@@ -1,0 +1,148 @@
+<form
+  [formGroup]="supplierForm"
+  class="card grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4"
+>
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Name"
+        formControlName="Name"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Name">Name</label>
+    </p-floatlabel>
+  </div>
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="ContactNumber"
+        formControlName="ContactNumber"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="ContactNumber">Contact Number</label>
+    </p-floatlabel>
+  </div>
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Email"
+        formControlName="Email"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Email">Email</label>
+    </p-floatlabel>
+  </div>
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Address"
+        formControlName="Address"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Address">Address</label>
+    </p-floatlabel>
+  </div>
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Products"
+        formControlName="Products"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Products">Products</label>
+    </p-floatlabel>
+  </div>
+
+  <!-- <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="OrgnizationId"
+        formControlName="OrgnizationId"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="OrgnizationId">Organization Id</label>
+    </p-floatlabel>
+
+
+  
+
+     
+  </div> -->
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="ContactPerson"
+        formControlName="ContactPerson"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="ContactPerson">Contact Person</label>
+    </p-floatlabel>
+  </div>
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Company"
+        formControlName="Company"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Company">Company</label>
+    </p-floatlabel>
+  </div>
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Category"
+        formControlName="Category"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Category">Category</label>
+    </p-floatlabel>
+  </div>
+</form>
+
+<!-- Save and Close Buttons -->
+<div class="flex justify-evenly sm:justify-end sm:gap-4 mt-10">
+  <div>
+    <p-button
+      label="Close"
+      icon="pi pi-times"
+      outlined="true"
+      class="w-full sm:w-auto"
+      (click)="CloseInstances($event)"
+    ></p-button>
+  </div>
+  <div>
+    <p-button
+      label="Save"
+      icon="pi pi-save"
+      [loading]="isLoading"
+      class="w-full sm:w-auto"
+      (click)="save()"
+    ></p-button>
+  </div>
+</div>

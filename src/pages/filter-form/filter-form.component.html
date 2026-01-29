@@ -1,0 +1,56 @@
+<div class="filter-form-container p-fluid">
+  <!-- Filter Fields -->
+  <div class="grid">
+    <ng-container *ngFor="let option of visibleFilterOptions">
+      <div class="col-12 md:col-6 mb-3">
+        <label class="block font-medium mb-2">{{ option.label }}</label>
+
+        <!-- Date input -->
+        <div *ngIf="option.type === 'date'">
+          <p-calendar
+            [(ngModel)]="filterValues[option.field]"
+            [showIcon]="true"
+            dateFormat="dd/mm/yy"
+            placeholder="Select date"
+            [showButtonBar]="true"
+            [showOnFocus]="false"
+            appendTo="body"
+            styleClass="w-full"
+          >
+          </p-calendar>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- No filter options message -->
+  <div *ngIf="visibleFilterOptions.length === 0" class="text-center p-4">
+    <i class="pi pi-filter-slash text-4xl text-gray-400 mb-3"></i>
+    <p class="text-gray-500 font-medium">No filter options available</p>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex justify-content-end gap-2 mt-4">
+    <p-button
+      label="Cancel"
+      (onClick)="onCloseFilter()"
+      [outlined]="true"
+      styleClass="p-button-secondary"
+    >
+    </p-button>
+    <p-button
+      label="Reset"
+      (onClick)="onResetFilter()"
+      [outlined]="true"
+      styleClass="p-button-danger"
+    >
+    </p-button>
+    <p-button
+      label="Apply Filters"
+      (onClick)="onApplyFilter()"
+      icon="pi pi-check"
+      styleClass="p-button-primary"
+    >
+    </p-button>
+  </div>
+</div>

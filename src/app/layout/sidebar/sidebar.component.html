@@ -1,0 +1,240 @@
+<div
+  [ngClass]="{
+    'w-auto p-6': isSlimMenu,
+    'w-72': !isSlimMenu
+  }"
+  class="rounded-2xl p-5 bg-surface-50 dark:bg-surface-900 flex flex-col justify-between h-full"
+>
+<div [ngClass]="{
+  'w-12 flex flex-col items-center': isSlimMenu,
+  'w-auto flex justify-center': !isSlimMenu
+}">
+  <div class="flex items-center justify-center">
+    <div
+      class="border border-primary rounded-xl flex items-center justify-center"
+    >
+      <div class="flex items-center justify-center">
+        <img
+          [src]="getLogoSrc()"
+          alt="Logo"
+          [ngClass]="{
+            'w-32 h-32': !isSlimMenu,
+            'w-12 h-12': isSlimMenu
+          }"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+  <!-- Scrollable content wrapper div -->
+  <div class="overflow-y-auto overflow-x-hidden scrollbar-hide flex-grow">
+    <div
+      [ngClass]="{
+        'w-12 flex flex-col items-center': isSlimMenu,
+        'w-auto': !isSlimMenu
+      }"
+    >
+
+      <div class="mt-6 flex flex-col gap-2">
+        <div
+          *ngFor="let navItem of filteredMainItems"
+          [routerLink]="navItem.routerLink"
+          [pTooltip]="isSlimMenu ? navItem.title : null"
+          (click)="LayoutClick($event)"
+          class="p-ripple px-4 py-1 flex items-center gap-1 cursor-pointer text-base rounded-lg transition-all select-none"
+          [ngClass]="{
+            'w-12 justify-center py-4': isSlimMenu,
+            'w-full': !isSlimMenu,
+            'text-muted-color hover:bg-emphasis bg-transparent':
+              selectedSampleAppsSidebarNav !== navItem.title,
+            'text-primary-contrast bg-primary hover:bg-primary-emphasis':
+              selectedSampleAppsSidebarNav === navItem.title
+          }"
+        >
+          <i [class]="navItem.icon"></i>
+          <span
+            [ngClass]="{
+              hidden: isSlimMenu,
+              'font-medium leading-8': !isSlimMenu
+            }"
+            >・</span
+          >
+          <span
+            [ngClass]="{
+              hidden: isSlimMenu,
+              'font-medium leading-none': !isSlimMenu
+            }"
+            >{{ navItem.title }}</span
+          >
+        </div>
+
+        <!-- Products Expandable Menu -->
+        <div class="w-full">
+        
+          <p-popover #popup>
+            <div class="flex flex-col">
+              <div
+              *ngFor="let subItem of productSubItems"
+              [routerLink]="subItem.routerLink"
+              (click)="LayoutClick($event)"
+              class="p-ripple px-4 py-1 flex items-center cursor-pointer text-base rounded-lg transition-all select-none"
+              [ngClass]="{
+                'text-muted-color hover:bg-emphasis bg-transparent':
+                  selectedProductSubItem !== subItem.title,
+                'text-primary-contrast bg-primary hover:bg-primary-emphasis':
+                  selectedProductSubItem === subItem.title
+              }"
+            >
+              <i [class]="subItem.icon"></i>
+              <span class="font-medium leading-8">・</span>
+              <span class="font-medium leading-none">{{ subItem.title }}</span>
+            </div>
+            </div>
+          </p-popover>
+
+          <!-- Submenu items with animation -->
+          <div *ngIf="!isSlimMenu" 
+               [@submenuAnimation]="isProductMenuExpanded ? 'expanded' : 'collapsed'"
+               class="ml-8 overflow-hidden">
+            <div
+              *ngFor="let subItem of productSubItems"
+              [routerLink]="subItem.routerLink"
+              (click)="LayoutClick($event)"
+              class="p-ripple px-4 py-1 mt-2 flex items-center gap-1 cursor-pointer text-base rounded-lg transition-all select-none"
+              [ngClass]="{
+                'text-muted-color hover:bg-emphasis bg-transparent':
+                  selectedProductSubItem !== subItem.title,
+                'text-primary-contrast bg-primary hover:bg-primary-emphasis':
+                  selectedProductSubItem === subItem.title
+              }"
+            >
+              <i [class]="subItem.icon"></i>
+              <span class="font-medium leading-8">・</span>
+              <span class="font-medium leading-none">{{ subItem.title }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other menu items -->
+        <div
+          *ngFor="let navItem of filteredOtherItems"
+          [routerLink]="navItem.routerLink"
+          [pTooltip]="isSlimMenu ? navItem.title : null"
+          (click)="LayoutClick($event)"
+          class="p-ripple px-4 py-1 flex items-center gap-2 cursor-pointer text-base rounded-lg transition-all select-none"
+          [ngClass]="{
+            'w-12 justify-center py-4': isSlimMenu,
+            'w-full': !isSlimMenu,
+            'text-muted-color hover:bg-emphasis bg-transparent':
+              selectedSampleAppsSidebarNav !== navItem.title,
+            'text-primary-contrast bg-primary hover:bg-primary-emphasis':
+              selectedSampleAppsSidebarNav === navItem.title
+          }"
+        >
+          <i [class]="navItem.icon"></i>
+          <span
+            [ngClass]="{
+              hidden: isSlimMenu,
+              'font-medium leading-8': !isSlimMenu
+            }"
+            >・</span
+          >
+          <span
+            [ngClass]="{
+              hidden: isSlimMenu,
+              'font-medium leading-none': !isSlimMenu
+            }"
+            >{{ navItem.title }}</span
+          >
+        </div>
+      </div>
+    </div>
+    
+    <div
+      [ngClass]="{
+        'w-12 flex flex-col items-center': isSlimMenu,
+        'w-auto': !isSlimMenu
+      }"
+    >
+      <div class="mt-10 flex flex-col gap-2">
+        <div
+          *ngFor="let navItem of sampleAppsSidebarNavsMore"
+          [pTooltip]="isSlimMenu ? navItem.title : null"
+          (click)="visibleRight = true; LayoutClick($event)"
+          class="px-4 py-1 flex items-center gap-1 cursor-pointer text-base rounded-lg transition-all select-none"
+          [ngClass]="{
+            'w-12 justify-center py-4': isSlimMenu,
+            'w-full': !isSlimMenu,
+            'text-muted-color hover:bg-emphasis bg-transparent':
+              selectedSampleAppsSidebarNav !== navItem.title,
+            'text-primary-contrast bg-primary hover:bg-primary-emphasis':
+              selectedSampleAppsSidebarNav === navItem.title
+          }"
+        >
+          <i [class]="navItem.icon"></i>
+          <span [class]="isSlimMenu ? 'hidden' : 'font-medium leading-8'"
+            >・</span
+          >
+          <span [class]="isSlimMenu ? 'hidden' : 'font-medium leading-none'">{{
+            navItem.title
+          }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User profile section - fixed at the bottom -->
+  <div class="mt-auto">
+    <p-divider />
+    <div class="flex items-center" [class.flex-col]="isSlimMenu" [class.gap-3]="!isSlimMenu">
+      <p-avatar
+        *ngIf="isSlimMenu"
+        [image]="ProfileData?.picture"
+        size="large"
+        shape="circle"
+        class="shrink-0 cursor-pointer"
+        (click)="toggle($event)"
+      />  
+    
+      <div class="flex flex-wrap w-full" [class.hidden]="isSlimMenu">
+        <div 
+          class="flex items-center gap-2 py-3 hover:bg-emphasis cursor-pointer rounded-border w-full overflow-hidden"
+          (click)="toggle($event)"
+        >
+        <img [src]="ProfileData?.picture" style="width: 32px" class="rounded-full" />
+          <div class="flex flex-col w-full min-w-0 overflow-hidden">
+            <span class="font-medium block break-words w-full overflow-hidden text-ellipsis leading-tight">
+              {{ ProfileData?.name }}
+            </span>
+            <div class="text-sm text-surface-500 dark:text-surface-400 block break-words w-full overflow-hidden text-ellipsis leading-tight">
+              {{ ProfileData?.email }}
+            </div>
+          </div>
+        </div>
+    
+        <p-popover #op>
+          <div class="flex flex-col gap-4">
+            <button 
+              pButton 
+              (click)="logout()" 
+              severity="secondary"
+              class="flex items-center gap-2 px-3 py-2 w-full text-left"
+            >
+              <i class="pi pi-sign-out"></i>
+              <span class="font-medium">Sign Out</span>
+            </button>
+          </div>
+        </p-popover>
+    
+        <div class="flex justify-center" [class.hidden]="!isSlimMenu">
+          <button 
+            pButton 
+            (click)="logout()" 
+            icon="pi pi-sign-out" 
+            severity="secondary"
+          ></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

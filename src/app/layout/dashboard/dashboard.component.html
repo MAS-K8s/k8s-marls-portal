@@ -1,0 +1,189 @@
+<div class="flex-1 h-full max-h-screen overflow-auto pb-0.5 scrollbar-hide">
+  <!-- Header -->
+  <div class="flex flex-wrap gap-4 items-start justify-between p-1">
+    <div class="flex-1">
+      <div class="text-800 text-3xl font-semibold leading-normal">
+        Welcome to Mezota Retail
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Wrapper -->
+  <div class="overflow-auto">
+    <!-- Filter Section -->
+    <div class="mt-4 flex flex-wrap gap-6 items-center justify-between p-1">
+      <p-selectbutton
+        [(ngModel)]="selectedTime"
+        [options]="timeOptions"
+        (onChange)="changeSelect()"
+      ></p-selectbutton>
+      <div class="flex items-center gap-2">
+        <p-button
+          label="Download Reports"
+          icon="pi pi-download"
+          iconPos="right"
+          (onClick)="navigateToReports()"
+        ></p-button>
+        <p-calendar
+          [(ngModel)]="dateRange"
+          selectionMode="range"
+          [showIcon]="true"
+          placeholder="Date Range"
+        ></p-calendar>
+      </div>
+    </div>
+
+    <!-- Stats Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+      <!-- Sales Card -->
+      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+          <div class="text-gray-600 dark:text-gray-300">Annual Sales</div>
+          <i class="pi pi-chart-line text-blue-500 dark:text-blue-400 text-xl"></i>
+        </div>
+        <div class="text-gray-900 dark:text-white text-2xl font-bold">
+          {{ currencySymbol }} {{ formatCurrency(salesData.annual) }}
+        </div>
+        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Daily: {{ currencySymbol }} {{ formatCurrency(salesData.daily) }}
+        </div>
+      </div>
+
+      <!-- Profit Card -->
+      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+          <div class="text-gray-600 dark:text-gray-300">Annual Profit</div>
+          <i class="pi pi-dollar text-green-500 dark:text-green-400 text-xl"></i>
+        </div>
+        <div class="text-gray-900 dark:text-white text-2xl font-bold">
+          {{ currencySymbol }} {{ formatCurrency(profitData.annual) }}
+        </div>
+        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Daily: {{ currencySymbol }} {{ formatCurrency(profitData.daily) }}
+        </div>
+      </div>
+
+      <!-- Stock Card -->
+      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+          <div class="text-gray-600 dark:text-gray-300">Stock Status</div>
+          <i class="pi pi-box text-purple-500 dark:text-purple-400 text-xl"></i>
+        </div>
+        <div class="text-gray-900 dark:text-white text-2xl font-bold">
+          {{ stockData.items }} Items
+        </div>
+        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Value: {{ currencySymbol }} {{ formatCurrency(stockData.value) }}
+        </div>
+      </div>
+
+      <!-- Wastage Card -->
+      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+          <div class="text-gray-600 dark:text-gray-300">Wastage</div>
+          <i class="pi pi-exclamation-circle text-red-500 dark:text-red-400 text-xl"></i>
+        </div>
+        <div class="text-gray-900 dark:text-white text-2xl font-bold">
+          {{ wastageData.items }} Items
+        </div>
+        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Loss: {{ currencySymbol }} {{ formatCurrency(wastageData.cost) }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="flex flex-col gap-6 mt-6">
+      <!-- Sales Chart -->
+      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
+        <div class="flex items-center justify-between mb-6">
+          <div class="text-xl font-semibold text-gray-800 dark:text-white">
+            Sales Analytics
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span class="text-sm text-gray-600 dark:text-white">Sales</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-green-500"></div>
+              <span class="text-sm text-gray-600 dark:text-white">Profit</span>
+            </div>
+          </div>
+        </div>
+        <p-chart
+          type="line"
+          [data]="chartData"
+          [options]="chartOptions"
+          height="20rem"
+        ></p-chart>
+      </div>
+
+      <!-- Bottom Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Transactions -->
+        <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div class="text-xl font-semibold text-gray-800 dark:text-white">
+              Recent Transactions
+            </div>
+            <p-button
+              label="View All"
+              icon="pi pi-arrow-right"
+              styleClass="p-button-text"
+              (onClick)="navigateToTransaction()"
+            ></p-button>
+          </div>
+          <p-table
+            [value]="transactions"
+            [rows]="5"
+            [paginator]="true"
+            styleClass="p-datatable-sm"
+          >
+            <ng-template pTemplate="header">
+              <tr>
+                <th>ID</th>
+                <th>Product</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-transaction>
+              <tr>
+                <td>{{ transaction.id }}</td>
+                <td>{{ transaction.product }}</td>
+                <td>{{ currencySymbol }} {{ formatCurrency(transaction.amount) }}</td>
+                <td>
+                  <span [class]="getStatusClass(transaction.status)">
+                    {{ transaction.status }}
+                  </span>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+
+        <!-- Top Products -->
+        <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div class="text-xl font-semibold text-gray-800 dark:text-white">
+              Top Products
+            </div>
+            <p-button
+              label="View All"
+              icon="pi pi-arrow-right"
+              styleClass="p-button-text"
+              (onClick)="navigateToProduct()"
+            ></p-button>
+          </div>
+          <p-chart
+            type="pie"
+            [data]="pieData"
+            [options]="pieOptions"
+            height="20rem"
+          ></p-chart>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

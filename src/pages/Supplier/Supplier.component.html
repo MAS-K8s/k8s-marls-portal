@@ -1,0 +1,244 @@
+<p-toast />
+<p-confirmdialog #cd>
+  <ng-template
+    #headless
+    let-message
+    let-onAccept="onAccept"
+    let-onReject="onReject"
+  >
+    <div
+      class="flex flex-col items-center p-8 bg-surface-0 dark:bg-surface-900 rounded"
+    >
+      <span class="font-bold text-2xl block mb-2 mt-6">{{ message.header }}</span>
+      <p class="mb-0">{{ message.message }}</p>
+      <div class="flex items-center gap-2 mt-6">
+        <p-button
+          label="Cancel"
+          [outlined]="true"
+          (onClick)="onReject()"
+          styleClass="w-32"
+        ></p-button>
+        <p-button
+          label="Delete"
+          (onClick)="onAccept()"
+          styleClass="w-32"
+          severity="danger"
+        ></p-button>
+      </div>
+    </div>
+  </ng-template>
+</p-confirmdialog>
+<div class="container mx-auto px-4">
+  <!-- Header Section -->
+  <div
+    class="flex flex-col xl:flex-row items-center xl:items-start gap-2 justify-between"
+  >
+    <div>
+      <div class="text-2xl leading-8 text-color font-medium">Supplier</div>
+    </div>
+  </div>
+
+  <!-- Search and Action Buttons Section -->
+  <div
+    class="mt-10 mb-4 flex flex-col xl:flex-row items-center justify-between space-y-4 xl:space-y-0 xl:space-x-4"
+  >
+    <p-iconfield class="w-full sm:w-auto">
+      <p-inputicon class="pi pi-search"> </p-inputicon>
+      <input
+        pInputText
+        type="text"
+        (input)="onGlobalFilter($event)"
+        placeholder="Search Supplier"
+        class="w-full sm:w-auto p-inputtext"
+      />
+    </p-iconfield>
+
+    <div
+      class="flex flex-wrap items-center gap-3 justify-center sm:justify-end w-full sm:w-auto"
+    >
+      <ng-container *ngIf="!isDataLoading">
+        <p-button
+          icon="pi pi-refresh"
+          outlined
+          severity="secondary"
+          (click)="reloadState()"
+          class="m-1"
+        />
+        <p-button
+          label="{{ displayCurrentPage }} of {{ totalPages }}"
+          outlined
+          severity="secondary"
+          class="m-1"
+        />
+        <p-button
+          icon="pi pi-chevron-left"
+          outlined
+          severity="secondary"
+          (click)="prev()"
+          [disabled]="isFirstPage()"
+          class="m-1"
+        />
+        <p-button
+          icon="pi pi-chevron-right"
+          outlined
+          severity="secondary"
+          (click)="next()"
+          [disabled]="isLastPage()"
+          class="m-1"
+        />
+      </ng-container>
+      <ng-container *ngIf="hasAccess('DTO5222', 'CREATE') && dtoName">
+        <p-divider layout="vertical" class="hidden sm:block m-0 p-0" />
+        <p-button
+          icon="pi pi-plus"
+          label="Create Supplier"
+          outlined
+          (click)="showCreateSupplierDialog()"
+          severity="secondary"
+          class="m-1"
+        />
+      </ng-container>
+    </div>
+  </div>
+
+  <div class="w-full h-full overflow-y-auto scrollbar-hide">
+    <p-table
+      #table
+      #dt
+      [value]="SupplierData"
+      [(selection)]="selectedRows"
+      dataKey="id"
+      [rows]="rows"
+      [totalRecords]="totalRecords"
+      [paginator]="false"
+      [first]="first"
+      [globalFilterFields]="[
+        'Name',
+        'ContactNumber',
+        'Email',
+        'Address',
+        'Products',
+        'ContactPerson',
+        'Company',
+        'Category'
+      ]"
+      scrollHeight="calc(100vh - 200px)"
+      class="w-full min-w-[1000px]"
+      [loading]="isDataLoading"
+    >
+      <!-- Table Header Template -->
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 3rem">
+            <p-tableHeaderCheckbox />
+          </th>
+          <th style="min-width: 120px">Name</th>
+          <th style="min-width: 140px">Contact Number</th>
+          <th style="min-width: 200px">Email</th>
+          <th style="min-width: 200px">Address</th>
+          <th style="min-width: 150px">Products</th>
+          <th style="min-width: 140px">Contact Person</th>
+          <th style="min-width: 140px">Company</th>
+          <th style="min-width: 120px">Category</th>
+          <th style="min-width: 100px; text-align: center">Actions</th>
+        </tr>
+      </ng-template>
+
+      <!-- Table Body Template -->
+      <ng-template pTemplate="body" let-SupplierData>
+        <tr>
+          <td>
+            <p-tableCheckbox [value]="SupplierData" />
+          </td>
+          <td>
+            <div class="leading-6 text-color">{{ SupplierData.Name }}</div>
+          </td>
+          <td>
+            <div class="leading-6 text-color">
+              {{ SupplierData.ContactNumber }}
+            </div>
+          </td>
+          <td>
+            <div class="leading-6 text-color">
+              <a
+                href="mailto:{{ SupplierData.Email }}"
+                class="text-primary hover:underline"
+              >
+                {{ SupplierData.Email }}
+              </a>
+            </div>
+          </td>
+          <td>
+            <div class="leading-6 text-color max-w-xs truncate">
+              {{ SupplierData.Address }}
+            </div>
+          </td>
+          <td>
+            <div class="leading-6 text-color">{{ SupplierData.Products }}</div>
+          </td>
+          <td>
+            <div class="leading-6 text-color">
+              {{ SupplierData.ContactPerson }}
+            </div>
+          </td>
+          <td>
+            <div class="leading-6 text-color">{{ SupplierData.Company }}</div>
+          </td>
+          <td>
+            <div class="leading-6 text-color">
+              <span class="px-2 py-1 rounded-md bg-gray-100 text-gray-700">
+                {{ SupplierData.Category }}
+              </span>
+            </div>
+          </td>
+          <td>
+            <div class="flex justify-center gap-2">
+              <p-button
+                icon="pi pi-eye"
+                (click)="viewSupplier(SupplierData)"
+                size="small"
+                [rounded]="true"
+                variant="outlined"
+                pTooltip="View"
+                tooltipPosition="top"
+              ></p-button>
+              <p-button
+                *ngIf="hasAccess('DTO5222', 'UPDATE')"
+                icon="pi pi-pencil"
+                (click)="showEditSupplierDialog(SupplierData)"
+                size="small"
+                [rounded]="true"
+                variant="outlined"
+                pTooltip="Edit"
+                tooltipPosition="top"
+              ></p-button>
+              <p-button
+                *ngIf="hasAccess('DTO5222', 'DELETE')"
+                icon="pi pi-trash"
+                (click)="deleteSupplier(SupplierData)"
+                severity="danger"
+                size="small"
+                [rounded]="true"
+                variant="outlined"
+                pTooltip="Delete"
+                tooltipPosition="top"
+              ></p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <!-- Empty State Template -->
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="10" class="text-center p-4">
+            <div class="flex flex-col items-center justify-center">
+              <i class="pi pi-inbox text-6xl text-gray-300 mb-4"></i>
+              <span class="text-lg text-gray-500">No Supplier records found</span>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>

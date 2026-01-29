@@ -1,0 +1,78 @@
+<div class="card grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+    <div>
+      <p-floatlabel class="w-full mt-3">
+        <input
+          pInputText
+          id="Name"
+          type="text"
+          autocomplete="off"
+          class="w-full"
+          [(ngModel)]="role.Name"
+          [ngClass]="{'ng-invalid ng-dirty': submitted && !role.Name}"
+        />
+        <label for="Brand">Name</label>
+      </p-floatlabel>
+      <small
+        class="ng-dirty ng-invalid text-red-500"
+        *ngIf="submitted && !role.Name"
+      >
+        Role name is required.
+      </small>
+    </div>
+  
+    <div>
+      <p-floatlabel class="w-full mt-3">
+        <input
+          pInputText
+          id="Description"
+          type="text"
+          autocomplete="off"
+          class="w-full"
+          [(ngModel)]="role.Description"
+          [ngClass]="{'ng-invalid ng-dirty': submitted && !role.Description}"
+        />
+        <label for="Brand">Description</label>
+      </p-floatlabel>
+      <small
+        class="ng-dirty ng-invalid text-red-500"
+        *ngIf="submitted && !role.Description"
+      >
+        Description name is required.
+      </small>
+    </div>
+  
+    <div *ngFor="let permission of PermissionCategories" class="mb-2">
+      <label for="Permissions required" class="mb-2 text-muted-color">
+        {{permission.ServiceName}} Management
+      </label>
+      <div class="d-flex mt-2">
+        <div *ngFor="let crud of cruds" class="mb-2">
+          <p-checkbox
+            [(ngModel)]="permission.Permissions"
+            name="group"
+            [value]="crud"
+          ></p-checkbox>
+          <label for="permission" class="ml-2 text-muted-color">{{crud.Name}}</label>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Footer Section -->
+    <div class="col-span-2 flex justify-end gap-4 mt-10">
+      <p-button
+        label="Close"
+        icon="pi pi-times"
+        outlined="true"
+        class="w-full sm:w-auto"
+        (click)="CloseInstances($event)"
+      ></p-button>
+      <p-button
+        label="Save"
+        icon="pi pi-save"
+        [loading]="isLoading"
+        class="w-full sm:w-auto"
+        (click)="save()"
+      ></p-button>
+    </div>
+  </div>
+  

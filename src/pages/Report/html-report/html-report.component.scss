@@ -1,0 +1,14 @@
+:host ::ng-deep {
+  .calendar-overlay {
+    z-index: 100001 !important; 
+    position: fixed !important;
+  }
+  
+  .p-calendar {
+    width: 100%;
+    
+    .p-inputtext {
+      width: 100%;
+    }
+  }
+}

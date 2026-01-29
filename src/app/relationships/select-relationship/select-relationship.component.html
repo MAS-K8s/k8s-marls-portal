@@ -1,0 +1,43 @@
+<div>
+  <div class="bg-color shadow-2xl rounded-3xl overflow-hidden">
+    <div class="text-color p-3">
+      <i
+        class="pi pi-times flex justify-end pi pi-times ml-2 cursor-pointer rounded-full"
+        (click)="CloseInstances()"
+      ></i>
+      <h2 class="text-3xl font-bold text-center">
+        <i class="pi {{ selecteddto?.icon }} mr-2" style="font-size: 2rem"></i>
+        {{ selecteddto?.label }}
+      </h2>
+    </div>
+
+    <div class="p-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Looping over itemsData -->
+        <div
+          *ngFor="let item of itemsData"
+          class="transform transition duration-300 hover:scale-105"
+        >
+          <div
+            class="bg-gray-100 dark:bg-gray-700 rounded-xl p-6 text-center shadow-lg hover:shadow-xl space-y-4 border-2 border-transparent hover:border-primary-500"
+          >
+            <div
+              class="w-16 h-16 bg-primary-500 text-color rounded-full flex items-center justify-center mx-auto mb-4"
+            >
+              <i class="pi {{ item.icon }}" style="font-size: 1.5rem;"></i>
+            </div>
+
+            <button
+              pButton
+              class="w-full bg-primary-500 text-color py-3 rounded-lg hover:bg-primary-700 transition duration-300"
+              pTooltip="View"
+              (click)="visit(item.name)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

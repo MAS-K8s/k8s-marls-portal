@@ -1,0 +1,91 @@
+<form
+  [formGroup]="userForm"
+  class="card grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4"
+>
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="FirstName"
+        formControlName="FirstName"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="FirstName">First Name</label>
+    </p-floatlabel>
+  </div>
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="LastName"
+        formControlName="LastName"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="LastName">Last Name</label>
+    </p-floatlabel>
+  </div>
+
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Email"
+        formControlName="Email"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Email">Email</label>
+    </p-floatlabel>
+  </div>
+
+  <div class="mt-3">
+    <p-select
+      [disabled]="isLoadingClient"
+      [dropdownIcon]="isLoadingClient ? 'pi pi-spinner pi-spin' : 'pi pi-chevron-down'"
+      inputId="status"
+      [options]="rolesData"
+      styleClass="w-full"
+      optionLabel="Name"
+      formControlName="RoleId"
+      optionValue="RoleId"
+      appendTo="body"
+      panelStyleClass="w-full"
+      placeholder="Select Role"
+    >
+    </p-select>
+    <small
+      *ngIf="
+        userForm.get('RoleId')?.touched &&
+        userForm.get('RoleId')?.hasError('required')
+      "
+      class="text-red-600"
+    >
+      Role is required.
+    </small>
+  </div>
+</form>
+
+<!-- Save and Close Buttons -->
+<div class="flex justify-evenly sm:justify-end sm:gap-4 mt-10">
+  <div>
+    <p-button
+      label="Close"
+      icon="pi pi-times"
+      outlined="true"
+      class="w-full sm:w-auto"
+      (click)="CloseInstances($event)"
+    ></p-button>
+  </div>
+  <div>
+    <p-button
+      label="Save"
+      icon="pi pi-save"
+      [loading]="isLoading"
+      class="w-full sm:w-auto"
+      (click)="save()"
+    ></p-button>
+  </div>
+</div>
