@@ -1,187 +1,302 @@
-<div class="flex-1 h-full max-h-screen overflow-auto pb-0.5 scrollbar-hide">
-  <!-- Header -->
-  <div class="flex flex-wrap gap-4 items-start justify-between p-1">
-    <div class="flex-1">
-      <div class="text-800 text-3xl font-semibold leading-normal">
-        Welcome to Mezota Retail
+<div class="dashboard-container">
+  <!-- Header Section -->
+  <div class="dashboard-header">
+    <div class="header-content">
+      <div class="header-icon">
+        <i class="pi pi-sitemap"></i>
+      </div>
+      <div class="header-text">
+        <h1 class="header-title">Kubernetes DRL Controller</h1>
+        <p class="header-subtitle">Autonomous resource optimization with Deep Reinforcement Learning</p>
+      </div>
+    </div>
+    <div class="globe-container">
+      <div class="globe">
+        <div class="globe-ring"></div>
+        <div class="globe-ring ring-2"></div>
+        <div class="globe-ring ring-3"></div>
+        <div class="globe-dot dot-1"></div>
+        <div class="globe-dot dot-2"></div>
+        <div class="globe-dot dot-3"></div>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span class="status-text">{{ networkStatus }}</span>
       </div>
     </div>
   </div>
 
-  <!-- Content Wrapper -->
-  <div class="overflow-auto">
-    <!-- Filter Section -->
-    <div class="mt-4 flex flex-wrap gap-6 items-center justify-between p-1">
-      <p-selectbutton
-        [(ngModel)]="selectedTime"
-        [options]="timeOptions"
-        (onChange)="changeSelect()"
-      ></p-selectbutton>
-      <div class="flex items-center gap-2">
-        <p-button
-          label="Download Reports"
-          icon="pi pi-download"
-          iconPos="right"
-          (onClick)="navigateToReports()"
-        ></p-button>
-        <p-calendar
-          [(ngModel)]="dateRange"
-          selectionMode="range"
-          [showIcon]="true"
-          placeholder="Date Range"
-        ></p-calendar>
+  <!-- Main Metrics Row -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">AVG<br>REWARD</span>
+        <i class="pi pi-chart-line metric-icon"></i>
+      </div>
+      <div class="metric-value positive">{{ formatReward(avgReward) }}</div>
+      <div class="metric-chart">
+        <svg viewBox="0 0 60 20" class="sparkline">
+          <polyline 
+            points="0,15 10,12 20,14 30,10 40,8 50,11 60,9" 
+            fill="none" 
+            stroke="currentColor" 
+            stroke-width="1.5"
+          />
+        </svg>
       </div>
     </div>
 
-    <!-- Stats Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-      <!-- Sales Card -->
-      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
-        <div class="flex justify-between items-center mb-4">
-          <div class="text-gray-600 dark:text-gray-300">Annual Sales</div>
-          <i class="pi pi-chart-line text-blue-500 dark:text-blue-400 text-xl"></i>
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">EPSILON</span>
+        <i class="pi pi-bolt metric-icon" style="color: #f59e0b;"></i>
+      </div>
+      <div class="metric-value" style="color: #f59e0b;">{{ epsilon.toFixed(4) }}</div>
+      <div class="metric-progress">
+        <div class="progress-bar" [style.width.%]="epsilon * 100"></div>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">LATENCY</span>
+        <i class="pi pi-clock metric-icon" style="color: #a855f7;"></i>
+      </div>
+      <div class="metric-value" style="color: #a855f7;">{{ latency }}<span class="metric-unit">ms</span></div>
+      <div class="metric-trend">
+        <span class="trend-text">{{ latencyTrend }}</span>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">REPLICAS</span>
+        <i class="pi pi-server metric-icon" style="color: #8b5cf6;"></i>
+      </div>
+      <div class="metric-value" style="color: #8b5cf6;">{{ replicas }}</div>
+      <div class="metric-trend">
+        <span class="trend-text">{{ replicasTrend }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Middle Section: Neural Network & Resource Utilization -->
+  <div class="content-grid">
+    <!-- DQN Agent Architecture -->
+    <div class="panel neural-network-panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <h2 class="panel-title">DQN Agent Architecture</h2>
+          <p class="panel-subtitle">Real-time neural network activity</p>
         </div>
-        <div class="text-gray-900 dark:text-white text-2xl font-bold">
-          {{ currencySymbol }} {{ formatCurrency(salesData.annual) }}
-        </div>
-        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Daily: {{ currencySymbol }} {{ formatCurrency(salesData.daily) }}
+        <div class="training-badge" *ngIf="trainingActive">
+          <span class="training-dot"></span>
+          <span class="training-text">Training Active</span>
         </div>
       </div>
-
-      <!-- Profit Card -->
-      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
-        <div class="flex justify-between items-center mb-4">
-          <div class="text-gray-600 dark:text-gray-300">Annual Profit</div>
-          <i class="pi pi-dollar text-green-500 dark:text-green-400 text-xl"></i>
-        </div>
-        <div class="text-gray-900 dark:text-white text-2xl font-bold">
-          {{ currencySymbol }} {{ formatCurrency(profitData.annual) }}
-        </div>
-        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Daily: {{ currencySymbol }} {{ formatCurrency(profitData.daily) }}
-        </div>
-      </div>
-
-      <!-- Stock Card -->
-      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
-        <div class="flex justify-between items-center mb-4">
-          <div class="text-gray-600 dark:text-gray-300">Stock Status</div>
-          <i class="pi pi-box text-purple-500 dark:text-purple-400 text-xl"></i>
-        </div>
-        <div class="text-gray-900 dark:text-white text-2xl font-bold">
-          {{ stockData.items }} Items
-        </div>
-        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Value: {{ currencySymbol }} {{ formatCurrency(stockData.value) }}
-        </div>
-      </div>
-
-      <!-- Wastage Card -->
-      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
-        <div class="flex justify-between items-center mb-4">
-          <div class="text-gray-600 dark:text-gray-300">Wastage</div>
-          <i class="pi pi-exclamation-circle text-red-500 dark:text-red-400 text-xl"></i>
-        </div>
-        <div class="text-gray-900 dark:text-white text-2xl font-bold">
-          {{ wastageData.items }} Items
-        </div>
-        <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Loss: {{ currencySymbol }} {{ formatCurrency(wastageData.cost) }}
+      <div class="panel-content">
+        <div class="neural-network">
+          <svg viewBox="0 0 100 80" class="network-svg">
+            <defs>
+              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:0.1" />
+                <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:0.3" />
+              </linearGradient>
+            </defs>
+            <!-- Connection lines -->
+            <g class="connections" opacity="0.2">
+              <line *ngFor="let line of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]"
+                    [attr.x1]="10 + (line % 4) * 20"
+                    [attr.y1]="15 + (line % 5) * 15"
+                    [attr.x2]="30 + (line % 3) * 15"
+                    [attr.y2]="10 + (line % 6) * 13"
+                    stroke="url(#lineGradient)"
+                    stroke-width="0.5" />
+            </g>
+            <!-- Nodes -->
+            <g class="nodes">
+              <circle *ngFor="let node of neuralNetworkNodes" 
+                      [attr.cx]="node.x" 
+                      [attr.cy]="node.y" 
+                      r="1.5"
+                      [class.active]="node.active"
+                      class="node" />
+            </g>
+          </svg>
         </div>
       </div>
     </div>
 
-    <!-- Charts Section -->
-    <div class="flex flex-col gap-6 mt-6">
-      <!-- Sales Chart -->
-      <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div class="text-xl font-semibold text-gray-800 dark:text-white">
-            Sales Analytics
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span class="text-sm text-gray-600 dark:text-white">Sales</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full bg-green-500"></div>
-              <span class="text-sm text-gray-600 dark:text-white">Profit</span>
-            </div>
-          </div>
+    <!-- Resource Utilization -->
+    <div class="panel resource-panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <h2 class="panel-title">Resource Utilization</h2>
         </div>
-        <p-chart
-          type="line"
-          [data]="chartData"
-          [options]="chartOptions"
-          height="20rem"
-        ></p-chart>
       </div>
-
-      <!-- Bottom Section -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Recent Transactions -->
-        <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
-          <div class="flex items-center justify-between mb-6">
-            <div class="text-xl font-semibold text-gray-800 dark:text-white">
-              Recent Transactions
+      <div class="panel-content">
+        <div class="resource-charts">
+          <div class="resource-chart-item">
+            <div class="circular-progress" [attr.data-percent]="cpuUsage">
+              <svg viewBox="0 0 120 120" class="circular-svg">
+                <circle cx="60" cy="60" r="50" class="progress-bg" />
+                <circle cx="60" cy="60" r="50" class="progress-bar cpu-bar"
+                        [style.stroke-dashoffset]="314 - (314 * cpuUsage / 100)" />
+                <text x="60" y="55" class="progress-value">{{ cpuUsage }}%</text>
+                <text x="60" y="72" class="progress-label">CPU</text>
+              </svg>
             </div>
-            <p-button
-              label="View All"
-              icon="pi pi-arrow-right"
-              styleClass="p-button-text"
-              (onClick)="navigateToTransaction()"
-            ></p-button>
+            <div class="resource-stats">
+              <div class="stat-item">
+                <i class="pi pi-server stat-icon"></i>
+                <div class="stat-content">
+                  <span class="stat-label">CPU Avg</span>
+                  <span class="stat-value">{{ cpuAvg }}%</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <p-table
-            [value]="transactions"
-            [rows]="5"
-            [paginator]="true"
-            styleClass="p-datatable-sm"
-          >
-            <ng-template pTemplate="header">
-              <tr>
-                <th>ID</th>
-                <th>Product</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-transaction>
-              <tr>
-                <td>{{ transaction.id }}</td>
-                <td>{{ transaction.product }}</td>
-                <td>{{ currencySymbol }} {{ formatCurrency(transaction.amount) }}</td>
-                <td>
-                  <span [class]="getStatusClass(transaction.status)">
-                    {{ transaction.status }}
-                  </span>
-                </td>
-              </tr>
-            </ng-template>
-          </p-table>
+
+          <div class="resource-chart-item">
+            <div class="circular-progress" [attr.data-percent]="memoryUsage">
+              <svg viewBox="0 0 120 120" class="circular-svg">
+                <circle cx="60" cy="60" r="50" class="progress-bg" />
+                <circle cx="60" cy="60" r="50" class="progress-bar memory-bar"
+                        [style.stroke-dashoffset]="314 - (314 * memoryUsage / 100)" />
+                <text x="60" y="55" class="progress-value">{{ memoryUsage }}%</text>
+                <text x="60" y="72" class="progress-label">Memory</text>
+              </svg>
+            </div>
+            <div class="resource-stats">
+              <div class="stat-item">
+                <i class="pi pi-database stat-icon"></i>
+                <div class="stat-content">
+                  <span class="stat-label">Mem Avg</span>
+                  <span class="stat-value">{{ memAvg }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <!-- Top Products -->
-        <div class="bg-white dark:bg-surface-900 rounded-xl shadow-md p-6">
-          <div class="flex items-center justify-between mb-6">
-            <div class="text-xl font-semibold text-gray-800 dark:text-white">
-              Top Products
+  <!-- Charts Section -->
+  <div class="charts-grid">
+    <!-- Reward Progression -->
+    <div class="panel chart-panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <h2 class="panel-title">Reward Progression</h2>
+          <p class="panel-subtitle">Per-step rewards over time</p>
+        </div>
+        <div class="chart-stat">
+          <span class="chart-stat-value">↑ 48.0%</span>
+        </div>
+      </div>
+      <div class="panel-content chart-content">
+        <p-chart type="line" [data]="rewardProgressData" [options]="rewardProgressOptions" height="280px"></p-chart>
+      </div>
+    </div>
+
+    <!-- Epsilon Decay -->
+    <div class="panel chart-panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <h2 class="panel-title">Epsilon Decay Curve</h2>
+          <p class="panel-subtitle">Exploration rate over episodes</p>
+        </div>
+        <div class="chart-stat">
+          <span class="chart-stat-value">ε = {{ epsilon.toFixed(4) }}</span>
+        </div>
+      </div>
+      <div class="panel-content chart-content">
+        <p-chart type="line" [data]="epsilonDecayData" [options]="epsilonDecayOptions" height="280px"></p-chart>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Section: Activities & Deployments -->
+  <div class="bottom-grid">
+    <!-- Recent Agent Activity -->
+    <div class="panel activity-panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <h2 class="panel-title">Recent Agent Activity</h2>
+        </div>
+        <span class="activity-count">{{ totalDecisions }} total decisions</span>
+      </div>
+      <div class="panel-content table-content">
+        <p-table [value]="agentActivities" [scrollable]="true" scrollHeight="400px">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 40px;"></th>
+              <th>Service</th>
+              <th>Replicas</th>
+              <th>Reward</th>
+              <th>Time</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-activity>
+            <tr>
+              <td>
+                <div class="action-icon" [ngClass]="getActionClass(activity.action)">
+                  <i class="pi" [ngClass]="getActionIcon(activity.action)"></i>
+                </div>
+              </td>
+              <td>
+                <span class="service-name">{{ activity.service }}</span>
+              </td>
+              <td>
+                <span class="replica-count">{{ activity.replicas }}</span>
+              </td>
+              <td>
+                <span class="reward-value" [class.positive]="activity.reward > 0.5">
+                  {{ formatReward(activity.reward) }}
+                </span>
+              </td>
+              <td>
+                <span class="timestamp">{{ activity.timestamp }}</span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+
+    <!-- Deployments -->
+    <div class="panel deployments-panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <h2 class="panel-title">Deployments</h2>
+        </div>
+        <span class="activity-count">{{ activeDeployments }} active</span>
+      </div>
+      <div class="panel-content">
+        <div class="deployments-list">
+          <div class="deployment-item" *ngFor="let deployment of deployments">
+            <div class="deployment-icon">
+              <i class="pi pi-box"></i>
             </div>
-            <p-button
-              label="View All"
-              icon="pi pi-arrow-right"
-              styleClass="p-button-text"
-              (onClick)="navigateToProduct()"
-            ></p-button>
+            <div class="deployment-info">
+              <div class="deployment-header">
+                <span class="deployment-name">{{ deployment.name }}</span>
+                <p-tag [value]="deployment.status" [severity]="getStatusSeverity(deployment.status)" />
+              </div>
+              <span class="deployment-namespace">{{ deployment.namespace }}</span>
+              <div class="deployment-progress-container">
+                <span class="deployment-replica-count">{{ deployment.replicas }}</span>
+                <div class="deployment-progress-bar">
+                  <div class="deployment-progress-fill" 
+                       [style.width.%]="deployment.progress"
+                       [class.healthy]="deployment.status === 'healthy'"
+                       [class.scaling]="deployment.status === 'scaling'">
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <p-chart
-            type="pie"
-            [data]="pieData"
-            [options]="pieOptions"
-            height="20rem"
-          ></p-chart>
         </div>
       </div>
     </div>
