@@ -293,59 +293,59 @@ export class MainsectionComponent implements OnInit {
 
         {
           icon: 'pi pi-shopping-cart', // 🛒 Merchant Orders
-          title: 'Merchant Orders',
+          title: 'Agent Decisions',
           routerLink: '/merchant-orders',
           id: 'DTO5226',
         },
 
         {
           icon: 'pi pi-box', // 📦 Reseller Orders
-          title: 'Reseller Orders',
+          title: 'Training Metrics',
           routerLink: '/reseller-orders',
           id: 'DTO5225',
         },
 
         {
           icon: 'pi pi-upload', // ⬆️ Order to Admin
-          title: 'Order To Admin',
+          title: 'Q-Value Analysis',
           routerLink: '/order-to-admin',
           id: 'DTO5228',
         },
 
         {
           icon: 'pi pi-users', // 👥 Customer Orders
-          title: 'Customer Orders',
+          title: 'Deployment',
           routerLink: '/customer-orders',
           id: 'DTO5224',
         },
 
         {
           icon: 'pi pi-send', // 📩 Order to Merchant
-          title: 'Order To Merchant',
+          title: 'Performance',
           routerLink: '/order-to-merchant',
           id: 'DTO5227',
         },
 
-        {
-          icon: 'pi pi-briefcase', // 💼 Merchants
-          title: 'Merchants',
-          routerLink: '/merchants',
-          id: 'DTO5222',
-        },
+        // {
+        //   icon: 'pi pi-briefcase', // 💼 Merchants
+        //   title: 'Merchants',
+        //   routerLink: '/merchants',
+        //   id: 'DTO5222',
+        // },
 
-        {
-          icon: 'pi pi-id-card', // 🪪 Resellers
-          title: 'Resellers',
-          routerLink: '/resellers',
-          id: 'DTO5230',
-        },
+        // {
+        //   icon: 'pi pi-id-card', // 🪪 Resellers
+        //   title: 'Resellers',
+        //   routerLink: '/resellers',
+        //   id: 'DTO5230',
+        // },
 
-        {
-          icon: 'pi pi-user', // 👤 Customers
-          title: 'Customers',
-          routerLink: '/customers',
-          id: 'DTO5223',
-        },
+        // {
+        //   icon: 'pi pi-user', // 👤 Customers
+        //   title: 'Customers',
+        //   routerLink: '/customers',
+        //   id: 'DTO5223',
+        // },
 
         {
           icon: 'pi pi-file-excel',
