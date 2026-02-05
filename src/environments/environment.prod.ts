@@ -3,7 +3,7 @@ export const environment = {
   serverUrl: 'https://imo-user-mgt.onrender.com/User-Mgt/api',
   SupplierUrl: 'https://imo-mgt-be.onrender.com/Suppliers/api',
   ReportUrl: 'http://127.0.0.1:8886/Reports/api',
-   OrganizeUrl: 'http://127.0.0.1:8888/Organizations/api',
+  OrganizeUrl: 'http://127.0.0.1:8888/Organizations/api',
  InventoryUrl: 'http://127.0.0.1:8882/Inventory/api',
  
   LogoLight: '#',

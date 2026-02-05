@@ -1,0 +1,48 @@
+name: k8s-marls-portal
+
+on:
+  push:
+    branches:
+      - production
+      
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SERVER_NAME: "k8s-marls-portal.sachin.live"
+      SOURCE_PORT: "16927"
+      TARGET_PORT: "80"
+      SERVICE_NAME: Mpos-ws680
+      DOCKER_USER_NAME: ${{ secrets.CGAAS_DOCKER_USERNAME }}
+      REPO_NAME: Mpos-ws680
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Build & Push Docker Image
+        uses: mr-smithers-excellent/docker-build-push@v5
+        with:
+          image: ${{ secrets.DOCKER_USERNAME }}/Mpos-ws680
+          tags: latest
+          registry: docker.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESSCODE }}
+
+      - name: SSH to remote VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_IP }}
+          username: ${{ secrets.HOST_USERNAME }}
+          key: |
+            ${{ secrets.HOST_PASSWORD }}
+          script: |
+            set -x
+            echo "Exporting environment variables..."
+            export SERVER_NAME="${{ env.SERVER_NAME }}"
+            export SOURCE_PORT="${{ env.SOURCE_PORT }}"
+            export TARGET_PORT="${{ env.TARGET_PORT }}"
+            export SERVICE_NAME="${{ env.SERVICE_NAME }}"
+            export DOCKER_USER_NAME="${{ env.DOCKER_USER_NAME }}"
+            export REPO_NAME="${{ env.REPO_NAME }}"
+            sudo -E ./HostScript.sh
