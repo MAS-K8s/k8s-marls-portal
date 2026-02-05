@@ -294,7 +294,7 @@ export class MainsectionComponent implements OnInit {
         {
           icon: 'pi pi-shopping-cart', // 🛒 Merchant Orders
           title: 'Agent Decisions',
-          routerLink: '/merchant-orders',
+          routerLink: '/agent-decisions',
           id: 'DTO5226',
         },
 

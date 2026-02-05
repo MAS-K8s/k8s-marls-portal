@@ -1,0 +1,229 @@
+<div class="agent-decisions-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1 class="page-title">Agent Decisions</h1>
+      <p class="page-subtitle">Detailed log of all scaling actions</p>
+    </div>
+    <button pButton 
+            label="Export CSV" 
+            icon="pi pi-download" 
+            class="export-btn"
+            (click)="exportCSV()">
+    </button>
+  </div>
+
+  <!-- Search and Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-wrapper">
+      <i class="pi pi-search search-icon"></i>
+      <input 
+        type="text" 
+        pInputText 
+        [(ngModel)]="searchText"
+        (ngModelChange)="onSearchChange()"
+        placeholder="Search deployments..."
+        class="search-input"
+      />
+    </div>
+    
+    <div class="filter-dropdown">
+      <i class="pi pi-filter filter-icon"></i>
+      <p-dropdown 
+        [(ngModel)]="selectedActionFilter"
+        [options]="actionFilters"
+        optionLabel="label"
+        optionValue="value"
+        (onChange)="onActionFilterChange()"
+        placeholder="All Actions"
+        [style]="{'width': '100%'}"
+      ></p-dropdown>
+    </div>
+  </div>
+
+  <!-- Main Content Grid -->
+  <div class="content-grid">
+    <!-- Decision Log Table -->
+    <div class="panel decision-log-panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <h2 class="panel-title">Decision Log</h2>
+          <span class="decision-count">{{ totalDecisions }} decisions</span>
+        </div>
+      </div>
+      <div class="panel-content">
+        <p-table 
+          [value]="filteredDecisions" 
+          [scrollable]="true" 
+          scrollHeight="calc(100vh - 340px)"
+          selectionMode="single"
+          [(selection)]="selectedDecision"
+          (onRowSelect)="selectDecision($event.data)"
+          dataKey="id"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 60px;"></th>
+              <th>Deployment</th>
+              <th>Action</th>
+              <th>Replicas</th>
+              <th>Reward</th>
+              <th>ε</th>
+              <th>Time</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-decision>
+            <tr [pSelectableRow]="decision" [class.selected-row]="selectedDecision?.id === decision.id">
+              <td>
+                <div class="deployment-icon">
+                  <i class="pi pi-box"></i>
+                </div>
+              </td>
+              <td>
+                <span class="deployment-name">{{ decision.deployment }}</span>
+              </td>
+              <td>
+                <div class="action-badge" [ngClass]="getActionClass(decision.action)">
+                  <i class="pi" [ngClass]="getActionIcon(decision.action)"></i>
+                  <span>{{ getActionLabel(decision.action) }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="replica-change">{{ getReplicaChange(decision) }}</span>
+              </td>
+              <td>
+                <span class="reward-value">{{ formatReward(decision.reward) }}</span>
+              </td>
+              <td>
+                <span class="epsilon-value">{{ formatEpsilon(decision.epsilon) }}</span>
+              </td>
+              <td>
+                <span class="timestamp">{{ decision.timestamp }}</span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+
+    <!-- Decision Details Panel -->
+    <div class="panel decision-details-panel" *ngIf="selectedDecision">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <h2 class="panel-title">Decision Details</h2>
+          <span class="deployment-name-header">{{ selectedDecision.deployment }}</span>
+        </div>
+      </div>
+      
+      <div class="panel-content details-content">
+        <!-- State Vector -->
+        <div class="details-section">
+          <h3 class="section-title">STATE VECTOR</h3>
+          <div class="state-grid">
+            <div class="state-item">
+              <span class="state-label">CPU</span>
+              <span class="state-value">{{ selectedDecision.stateVector.cpu }}%</span>
+            </div>
+            <div class="state-item">
+              <span class="state-label">Memory</span>
+              <span class="state-value">{{ selectedDecision.stateVector.memory }}%</span>
+            </div>
+            <div class="state-item">
+              <span class="state-label">Latency</span>
+              <span class="state-value">{{ selectedDecision.stateVector.latency }}ms</span>
+            </div>
+            <div class="state-item">
+              <span class="state-label">Error Rate</span>
+              <span class="state-value">{{ selectedDecision.stateVector.errorRate }}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q-Values -->
+        <div class="details-section">
+          <h3 class="section-title">Q-VALUES</h3>
+          <div class="q-values-list">
+            <div class="q-value-item">
+              <div class="q-value-header">
+                <span class="q-value-label">Scale Up</span>
+                <span class="q-value-number" [ngClass]="getQValueClass(selectedDecision.qValues.scaleUp)">
+                  {{ formatQValue(selectedDecision.qValues.scaleUp) }}
+                </span>
+              </div>
+              <div class="q-value-bar-container">
+                <div 
+                  class="q-value-bar scale-up-bar" 
+                  [style.width.%]="getBarWidth(selectedDecision.qValues.scaleUp)">
+                </div>
+              </div>
+            </div>
+
+            <div class="q-value-item">
+              <div class="q-value-header">
+                <span class="q-value-label">Maintain</span>
+                <span class="q-value-number" [ngClass]="getQValueClass(selectedDecision.qValues.maintain)">
+                  {{ formatQValue(selectedDecision.qValues.maintain) }}
+                </span>
+              </div>
+              <div class="q-value-bar-container">
+                <div 
+                  class="q-value-bar maintain-bar" 
+                  [style.width.%]="getBarWidth(selectedDecision.qValues.maintain)">
+                </div>
+              </div>
+            </div>
+
+            <div class="q-value-item">
+              <div class="q-value-header">
+                <span class="q-value-label">Scale Down</span>
+                <span class="q-value-number" [ngClass]="getQValueClass(selectedDecision.qValues.scaleDown)">
+                  {{ formatQValue(selectedDecision.qValues.scaleDown) }}
+                </span>
+              </div>
+              <div class="q-value-bar-container">
+                <div 
+                  class="q-value-bar scale-down-bar" 
+                  [style.width.%]="getBarWidth(Math.abs(selectedDecision.qValues.scaleDown))">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Taken -->
+        <div class="details-section">
+          <h3 class="section-title">ACTION TAKEN</h3>
+          <div class="action-taken-card">
+            <div class="action-badge-large" [ngClass]="getActionClass(selectedDecision.action)">
+              <i class="pi" [ngClass]="getActionIcon(selectedDecision.action)"></i>
+              <span>{{ getActionLabel(selectedDecision.action) }}</span>
+            </div>
+            <div class="action-reward">
+              {{ selectedDecision.reward >= 0 ? '+' : '' }}{{ formatReward(selectedDecision.reward) }}
+            </div>
+          </div>
+          
+          <div class="replica-change-display">
+            <span class="replica-number">{{ selectedDecision.replicasBefore }}</span>
+            <i class="pi" 
+               [ngClass]="selectedDecision.action === 'scale-up' ? 'pi-arrow-up' : 
+                          selectedDecision.action === 'scale-down' ? 'pi-arrow-down' : 'pi-arrows-h'"
+               class="replica-arrow">
+            </i>
+            <span class="replica-number">{{ selectedDecision.replicasAfter }}</span>
+            <span class="replica-label">replicas</span>
+          </div>
+        </div>
+
+        <!-- Estimated Cost -->
+        <div class="details-section">
+          <h3 class="section-title">ESTIMATED COST</h3>
+          <div class="cost-display">
+            <span class="cost-value">${{ selectedDecision.estimatedCost.toFixed(2) }}</span>
+            <span class="cost-period">/hour</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

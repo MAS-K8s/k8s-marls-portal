@@ -1,15 +1,15 @@
-name: Mpos-ws680
+name: k8s-marls-portal
 
 on:
   push:
     branches:
-      - main
+      - production
       
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      SERVER_NAME: "Mpos-ws680.demo.cgaas.ai"
+      SERVER_NAME: "k8s-marls-portal.sachin.live"
       SOURCE_PORT: "16927"
       TARGET_PORT: "80"
       SERVICE_NAME: Mpos-ws680
@@ -23,11 +23,11 @@ jobs:
       - name: Build & Push Docker Image
         uses: mr-smithers-excellent/docker-build-push@v5
         with:
-          image: ${{ secrets.CGAAS_DOCKER_USERNAME }}/Mpos-ws680
+          image: ${{ secrets.DOCKER_USERNAME }}/Mpos-ws680
           tags: latest
           registry: docker.io
-          username: ${{ secrets.CGAAS_DOCKER_USERNAME }}
-          password: ${{ secrets.CGAAS_DOCKER_ACCESSCODE }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESSCODE }}
 
       - name: SSH to remote VPS
         uses: appleboy/ssh-action@master

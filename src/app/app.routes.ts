@@ -11,6 +11,7 @@ import { SupplierComponent } from '../pages/Supplier/Supplier.component';
 
 import { ReportComponent } from '../pages/Report/Report.component';
 import { OrganizationComponent } from '../pages/Organization/Organization.component';
+import { AgentDecisionsComponent } from '../pages/Agent-Decisions/agent-decisions.component';
 
 export const routes: Routes = [
   {
@@ -41,6 +42,12 @@ export const routes: Routes = [
       {
         path: 'report',
         component: ReportComponent,
+        canActivate: [AuthGuard],
+        data: { requiredRoles: 'DTO5210' },
+      },
+      {
+        path: 'agent-decisions',
+        component: AgentDecisionsComponent,
         canActivate: [AuthGuard],
         data: { requiredRoles: 'DTO5210' },
       },
