@@ -21,7 +21,7 @@ RUN npm run build
 # Serve the built application using an Nginx server
 FROM nginx:1.21
 
-    COPY --from=0 /app/dist/cgaas-ng/browser /usr/share/nginx/html
+    COPY --from=0 /app/dist/k8s-marls/browser /usr/share/nginx/html
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

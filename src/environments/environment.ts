@@ -1,6 +1,7 @@
 export const environment = {
   production: false,
-  serverUrl: ' http://127.0.0.1:8886/User-Mgt/api',
+  // serverUrl: ' http://127.0.0.1:8886/User-Mgt/api',
+  serverUrl: ' https://user-mgt-service.dev-sachin.co.uk/User-Mgt/api',
   SupplierUrl: 'https://imo-mgt-be.onrender.com/Suppliers/api',
   ReportUrl: 'http://127.0.0.1:8886/Reports/api',
    OrganizeUrl: 'http://127.0.0.1:8888/Organizations/api',
@@ -12,8 +13,6 @@ export const environment = {
   auth0: {
     domain: 'sachinayeshmantha.uk.auth0.com',
     clientId: 'IB1nY6MzrvgFovpz3aw0rCVZDRpnqVS1',
-    // domain: 'dev-yi2vtudtt52q3bgx.us.auth0.com',
-    // clientId: '56bSrJyNAAcsE7Hfs88lBH3BEXYesuwA',
     authorizationParams: {
       // audience: 'https://h-pos.us.auth0.com/api/v2/',
       redirect_uri: 'http://localhost:4200',
