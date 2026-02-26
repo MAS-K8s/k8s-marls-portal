@@ -10,11 +10,11 @@ export const environment = {
   LogoDark: '#',
   WORKSPACEID: 'WS680',
   auth0: {
-    domain: 'dev-yi2vtudtt52q3bgx.us.auth0.com',
-    clientId: '56bSrJyNAAcsE7Hfs88lBH3BEXYesuwA',
+    domain: 'sachinayeshmantha.uk.auth0.com',
+    clientId: 'IB1nY6MzrvgFovpz3aw0rCVZDRpnqVS1',
     authorizationParams: {
       // audience: 'https://h-pos.us.auth0.com/api/v2/',
-      redirect_uri: 'https://imo-mgt-fe.onrender.com',
+      redirect_uri: 'https://k8s-marls-portal.dev-sachin.co.uk',
     },
   },
 };
