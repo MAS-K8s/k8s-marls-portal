@@ -1,297 +1,217 @@
-<div class="dashboard-container">
-  <!-- Header Section -->
-  <div class="dashboard-header">
-    <div class="header-content">
-      <div class="header-icon">
-        <i class="pi pi-sitemap"></i>
-      </div>
-      <div class="header-text">
-        <h1 class="header-title">MARLS-K8S-Optimisation</h1>
-        <p class="header-subtitle">Autonomous resource optimization with Deep Reinforcement Learning</p>
-      </div>
-    </div>
-    <div class="globe-container">
-      <div class="globe">
-        <div class="globe-ring"></div>
-        <div class="globe-ring ring-2"></div>
-        <div class="globe-ring ring-3"></div>
-        <div class="globe-dot dot-1"></div>
-        <div class="globe-dot dot-2"></div>
-        <div class="globe-dot dot-3"></div>
-      </div>
-      <div class="status-indicator">
-        <span class="status-dot"></span>
-        <span class="status-text">{{ networkStatus }}</span>
-      </div>
-    </div>
+<div class="marls-root" translate="no">
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow--a"></div>
+  <div class="bg-glow bg-glow--b"></div>
+
+  <!-- ══ LOADING ══════════════════════════════════════════════════════════ -->
+  <div class="boot-screen" *ngIf="loading">
+    <div class="boot-logo">&#x2B21;</div>
+    <p class="boot-title">Connecting to MARLS Agent&hellip;</p>
+    <div class="boot-bar"><div class="boot-fill"></div></div>
   </div>
 
-  <!-- Main Metrics Row -->
-  <div class="metrics-grid">
-    <div class="metric-card">
-      <div class="metric-header">
-        <span class="metric-label">AVG<br>REWARD</span>
-        <i class="pi pi-chart-line metric-icon"></i>
-      </div>
-      <div class="metric-value positive">{{ formatReward(avgReward) }}</div>
-      <div class="metric-chart">
-        <svg viewBox="0 0 60 20" class="sparkline">
-          <polyline 
-            points="0,15 10,12 20,14 30,10 40,8 50,11 60,9" 
-            fill="none" 
-            stroke="currentColor" 
-            stroke-width="1.5"
-          />
-        </svg>
-      </div>
-    </div>
-
-    <div class="metric-card">
-      <div class="metric-header">
-        <span class="metric-label">EPSILON</span>
-        <i class="pi pi-bolt metric-icon" style="color: #f59e0b;"></i>
-      </div>
-      <div class="metric-value" style="color: #f59e0b;">{{ epsilon.toFixed(4) }}</div>
-      <div class="metric-progress">
-        <div class="progress-bar" [style.width.%]="epsilon * 100"></div>
-      </div>
-    </div>
-
-    <div class="metric-card">
-      <div class="metric-header">
-        <span class="metric-label">LATENCY</span>
-        <i class="pi pi-clock metric-icon" style="color: #a855f7;"></i>
-      </div>
-      <div class="metric-value" style="color: #a855f7;">{{ latency }}<span class="metric-unit">ms</span></div>
-      <div class="metric-trend">
-        <span class="trend-text">{{ latencyTrend }}</span>
-      </div>
-    </div>
-
-    <div class="metric-card">
-      <div class="metric-header">
-        <span class="metric-label">REPLICAS</span>
-        <i class="pi pi-server metric-icon" style="color: #8b5cf6;"></i>
-      </div>
-      <div class="metric-value" style="color: #8b5cf6;">{{ replicas }}</div>
-      <div class="metric-trend">
-        <span class="trend-text">{{ replicasTrend }}</span>
-      </div>
-    </div>
+  <div class="boot-screen boot-err" *ngIf="!loading && !vm">
+    <div class="boot-logo" style="color:#ef4444">&#x2715;</div>
+    <p class="boot-title" style="color:#ef4444">Agent Unreachable</p>
+    <p class="boot-sub">{{ errorMsg }}</p>
   </div>
 
-  <!-- Middle Section: Neural Network & Resource Utilization -->
-  <div class="content-grid">
-    <!-- DQN Agent Architecture -->
-    <div class="panel neural-network-panel">
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <h2 class="panel-title">DQN Agent Architecture</h2>
-          <p class="panel-subtitle">Real-time neural network activity</p>
-        </div>
-        <div class="training-badge" *ngIf="trainingActive">
-          <span class="training-dot"></span>
-          <span class="training-text">Training Active</span>
+  <!-- ══ MAIN ══════════════════════════════════════════════════════════════ -->
+  <div class="dash" *ngIf="vm" [@fadeUp]>
+
+    <!-- ── HEADER ─────────────────────────────────────────────────────────── -->
+    <header class="hdr">
+      <div class="hdr__left">
+        <div class="hdr__logo">&#x2B21;</div>
+        <div>
+          <h1 class="hdr__title">MARLS<span>-K8S</span></h1>
+          <p class="hdr__sub">Multi-Agent Reinforcement Learning &middot; Kubernetes Resource Optimisation</p>
         </div>
       </div>
-      <div class="panel-content">
-        <div class="neural-network">
-          <svg viewBox="0 0 100 80" class="network-svg">
-            <defs>
-              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:0.1" />
-                <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:0.3" />
-              </linearGradient>
-            </defs>
-            <!-- Connection lines -->
-            <g class="connections" opacity="0.2">
-              <line *ngFor="let line of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]"
-                    [attr.x1]="10 + (line % 4) * 20"
-                    [attr.y1]="15 + (line % 5) * 15"
-                    [attr.x2]="30 + (line % 3) * 15"
-                    [attr.y2]="10 + (line % 6) * 13"
-                    stroke="url(#lineGradient)"
-                    stroke-width="0.5" />
-            </g>
-            <!-- Nodes -->
-            <g class="nodes">
-              <circle *ngFor="let node of neuralNetworkNodes" 
-                      [attr.cx]="node.x" 
-                      [attr.cy]="node.y" 
-                      r="1.5"
-                      [class.active]="node.active"
-                      class="node" />
-            </g>
-          </svg>
+
+      <div class="hdr__center">
+        <div class="hstat" *ngFor="let s of headerStats">
+          <span class="hstat__val" [style.color]="s.color">{{ s.val }}</span>
+          <span class="hstat__lbl">{{ s.label }}</span>
         </div>
+      </div>
+
+      <div class="hdr__right">
+        <span class="live-pill" [class.live-pill--off]="!connected">
+          <span class="lpulse"></span>{{ connected ? 'LIVE' : 'OFFLINE' }}
+        </span>
+        <span class="xbadge xbadge--green" *ngIf="vm.redisAvailable">
+          <span class="xdot xdot--green"></span>Redis
+        </span>
+        <span class="xbadge xbadge--red" *ngIf="!vm.redisAvailable">Redis Off</span>
+        <div class="clock">{{ now | date:'HH:mm:ss' }}</div>
+      </div>
+    </header>
+
+    <!-- ── KPI CARDS ──────────────────────────────────────────────────────── -->
+    <div class="kpi-row">
+      <div class="kpi-card" *ngFor="let k of kpiCards; let i = index"
+           [style.animation-delay]="(i * 55) + 'ms'"
+           [attr.data-accent]="k.accent">
+        <div class="kpi-card__label">{{ k.label }}</div>
+        <div class="kpi-card__val" [style.color]="k.accent">
+          {{ k.val }}<span class="kpi-unit" *ngIf="k.unit">{{ k.unit }}</span>
+        </div>
+        <div class="kpi-card__delta" [ngClass]="k.dClass">{{ k.delta }}</div>
       </div>
     </div>
 
-    <!-- Resource Utilization -->
-    <div class="panel resource-panel">
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <h2 class="panel-title">Resource Utilization</h2>
-        </div>
-      </div>
-      <div class="panel-content">
-        <div class="resource-charts">
-          <div class="resource-chart-item">
-            <div class="circular-progress" [attr.data-percent]="cpuUsage">
-              <svg viewBox="0 0 120 120" class="circular-svg">
-                <circle cx="60" cy="60" r="50" class="progress-bg" />
-                <circle cx="60" cy="60" r="50" class="progress-bar cpu-bar"
-                        [style.stroke-dashoffset]="314 - (314 * cpuUsage / 100)" />
-                <text x="60" y="55" class="progress-value">{{ cpuUsage }}%</text>
-                <text x="60" y="72" class="progress-label">CPU</text>
-              </svg>
-            </div>
-            <div class="resource-stats">
-              <div class="stat-item">
-                <i class="pi pi-server stat-icon"></i>
-                <div class="stat-content">
-                  <span class="stat-label">CPU Avg</span>
-                  <span class="stat-value">{{ cpuAvg }}%</span>
-                </div>
-              </div>
-            </div>
+    <!-- ── AGENT STRIP ─────────────────────────────────────────────────────── -->
+    <div class="agent-strip">
+      <div class="agent-card" *ngFor="let a of vm.agents">
+        <span class="agent-card__dot" [style.background]="sc(a.status)"></span>
+        <div class="agent-card__top">
+          <div>
+            <div class="agent-card__name">{{ a.serviceName }}</div>
+            <div class="agent-card__ns">{{ a.namespace }}</div>
           </div>
+          <div class="agent-card__rwd"
+               [style.color]="a.avgReward100 > 0.5 ? '#10b981' : '#f59e0b'">
+            {{ a.avgReward100 | number:'1.3-3' }}
+          </div>
+        </div>
+        <div class="agent-card__act" [ngClass]="ac(a.lastAction)">{{ al(a.lastAction) }}</div>
+        <div class="agent-card__meta">
+          <span>{{ a.replicas }}/{{ a.maxReplicas }}</span>
+          <span>{{ a.cpuPct }}% CPU</span>
+          <span>{{ a.confidence | percent:'1.0-0' }}</span>
+        </div>
+        <div class="cbar"><div class="cbar__fill" [style.width.%]="a.confidence * 100"></div></div>
+      </div>
+    </div>
 
-          <div class="resource-chart-item">
-            <div class="circular-progress" [attr.data-percent]="memoryUsage">
-              <svg viewBox="0 0 120 120" class="circular-svg">
-                <circle cx="60" cy="60" r="50" class="progress-bg" />
-                <circle cx="60" cy="60" r="50" class="progress-bar memory-bar"
-                        [style.stroke-dashoffset]="314 - (314 * memoryUsage / 100)" />
-                <text x="60" y="55" class="progress-value">{{ memoryUsage }}%</text>
-                <text x="60" y="72" class="progress-label">Memory</text>
-              </svg>
-            </div>
-            <div class="resource-stats">
-              <div class="stat-item">
-                <i class="pi pi-database stat-icon"></i>
-                <div class="stat-content">
-                  <span class="stat-label">Mem Avg</span>
-                  <span class="stat-value">{{ memAvg }}%</span>
-                </div>
-              </div>
+    <!-- ── MAIN 3-COL GRID ─────────────────────────────────────────────────── -->
+    <div class="main-grid">
+
+      <!-- Neural Network -->
+      <div class="panel">
+        <div class="panel__hd">
+          <div>
+            <div class="panel__title">PPO Actor-Critic Network</div>
+            <div class="panel__sub">18-dimensional state &rarr; 3 discrete actions</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="xbadge xbadge--green">
+              <span class="lpulse lpulse--sm"></span>Training
+            </span>
+            <!-- <span class="xbadge xbadge--cyan">{{ vm.agents[0]?.device | uppercase }}</span> -->
+            <ng-container *ngIf="vm.agents.length">
+                <span class="xbadge xbadge--cyan">{{ vm.agents[0].device | uppercase }}</span>
+            </ng-container>
+          </div>
+        </div>
+        <div class="panel__bd">
+          <!-- ✅ FIX: wrapper div gives the canvas a real measured width -->
+          <div class="nn-wrap" #nnWrap>
+            <canvas #nnCanvas class="nn-canvas"></canvas>
+          </div>
+          <div class="nn-legend">
+            <span class="nn-legend__item" *ngFor="let l of nnLegend">
+              <span class="nn-legend__dot"
+                    [style.background]="l.color"
+                    [style.box-shadow]="'0 0 6px '+l.color+'80'">
+              </span>
+              {{ l.label }}
+            </span>
+          </div>
+          <div class="ppo-row">
+            <div class="ppo-box" *ngFor="let s of ppoStats">
+              <div class="ppo-box__lbl">{{ s.label }}</div>
+              <div class="ppo-box__val" [style.color]="s.color">{{ s.val }}</div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- Charts Section -->
-  <div class="charts-grid">
-    <!-- Reward Progression -->
-    <div class="panel chart-panel">
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <h2 class="panel-title">Reward Progression</h2>
-          <p class="panel-subtitle">Per-step rewards over time</p>
+      <!-- Resource Utilisation -->
+      <div class="panel">
+        <div class="panel__hd">
+          <div>
+            <div class="panel__title">Resource Utilisation</div>
+            <div class="panel__sub">Cluster-wide live metrics</div>
+          </div>
+          <span class="xbadge xbadge--cyan">Live</span>
         </div>
-        <div class="chart-stat">
-          <span class="chart-stat-value">↑ 48.0%</span>
-        </div>
-      </div>
-      <div class="panel-content chart-content">
-        <p-chart type="line" [data]="rewardProgressData" [options]="rewardProgressOptions" height="280px"></p-chart>
-      </div>
-    </div>
-
-    <!-- Epsilon Decay -->
-    <div class="panel chart-panel">
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <h2 class="panel-title">Epsilon Decay Curve</h2>
-          <p class="panel-subtitle">Exploration rate over episodes</p>
-        </div>
-        <div class="chart-stat">
-          <span class="chart-stat-value">ε = {{ epsilon.toFixed(4) }}</span>
-        </div>
-      </div>
-      <div class="panel-content chart-content">
-        <p-chart type="line" [data]="epsilonDecayData" [options]="epsilonDecayOptions" height="280px"></p-chart>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bottom Section: Activities & Deployments -->
-  <div class="bottom-grid">
-    <!-- Recent Agent Activity -->
-    <div class="panel activity-panel">
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <h2 class="panel-title">Recent Agent Activity</h2>
-        </div>
-        <span class="activity-count">{{ totalDecisions }} total decisions</span>
-      </div>
-      <div class="panel-content table-content">
-        <p-table [value]="agentActivities" [scrollable]="true" scrollHeight="400px">
-          <ng-template pTemplate="header">
-            <tr>
-              <th style="width: 40px;"></th>
-              <th>Service</th>
-              <th>Replicas</th>
-              <th>Reward</th>
-              <th>Time</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-activity>
-            <tr>
-              <td>
-                <div class="action-icon" [ngClass]="getActionClass(activity.action)">
-                  <i class="pi" [ngClass]="getActionIcon(activity.action)"></i>
+        <div class="panel__bd">
+          <div class="donut-row">
+            <div class="donut-wrap">
+              <div class="donut-container">
+                <canvas #cpuDonut class="donut-canvas"></canvas>
+                <div class="donut-center-label">
+                  <span class="donut-pct" style="color:#22d3ee">{{ vm.avgCpu | number:'1.0-0' }}%</span>
+                  <span class="donut-name">CPU</span>
                 </div>
-              </td>
-              <td>
-                <span class="service-name">{{ activity.service }}</span>
-              </td>
-              <td>
-                <span class="replica-count">{{ activity.replicas }}</span>
-              </td>
-              <td>
-                <span class="reward-value" [class.positive]="activity.reward > 0.5">
-                  {{ formatReward(activity.reward) }}
+              </div>
+            </div>
+            <div class="donut-wrap">
+              <div class="donut-container">
+                <canvas #memDonut class="donut-canvas"></canvas>
+                <div class="donut-center-label">
+                  <span class="donut-pct" style="color:#10b981">{{ avgMem | number:'1.0-0' }}%</span>
+                  <span class="donut-name">Memory</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="cpu-bars">
+            <div class="cpu-bars__item" *ngFor="let a of vm.agents">
+              <div class="cpu-bars__top">
+                <span class="cpu-bars__name">{{ a.serviceName }}</span>
+                <span class="cpu-bars__val"
+                      [style.color]="a.cpuPct > 75 ? '#f59e0b' : '#94a3b8'">
+                  {{ a.cpuPct }}%
                 </span>
-              </td>
-              <td>
-                <span class="timestamp">{{ activity.timestamp }}</span>
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
-    </div>
-
-    <!-- Deployments -->
-    <div class="panel deployments-panel">
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <h2 class="panel-title">Deployments</h2>
-        </div>
-        <span class="activity-count">{{ activeDeployments }} active</span>
-      </div>
-      <div class="panel-content">
-        <div class="deployments-list">
-          <div class="deployment-item" *ngFor="let deployment of deployments">
-            <div class="deployment-icon">
-              <i class="pi pi-box"></i>
-            </div>
-            <div class="deployment-info">
-              <div class="deployment-header">
-                <span class="deployment-name">{{ deployment.name }}</span>
-                <p-tag [value]="deployment.status" [severity]="getStatusSeverity(deployment.status)" />
               </div>
-              <span class="deployment-namespace">{{ deployment.namespace }}</span>
-              <div class="deployment-progress-container">
-                <span class="deployment-replica-count">{{ deployment.replicas }}</span>
-                <div class="deployment-progress-bar">
-                  <div class="deployment-progress-fill" 
-                       [style.width.%]="deployment.progress"
-                       [class.healthy]="deployment.status === 'healthy'"
-                       [class.scaling]="deployment.status === 'scaling'">
+              <div class="cpu-bars__track">
+                <div class="cpu-bars__fill"
+                     [style.width.%]="a.cpuPct"
+                     [class.cpu-bars__fill--hot]="a.cpuPct > 75"
+                     [class.cpu-bars__fill--ok]="a.cpuPct <= 75">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deployments -->
+      <div class="panel">
+        <div class="panel__hd">
+          <div>
+            <div class="panel__title">Managed Deployments</div>
+            <div class="panel__sub">rl-autoscale=true &middot; Go Controller</div>
+          </div>
+          <span class="xbadge xbadge--violet">{{ vm.agents.length }} services</span>
+        </div>
+        <div class="panel__bd">
+          <div class="dep-list">
+            <div class="dep-item" *ngFor="let a of vm.agents">
+              <div class="dep-icon">&#x2B21;</div>
+              <div class="dep-info">
+                <div class="dep-top">
+                  <span class="dep-name">{{ a.serviceName }}</span>
+                  <span class="dep-status"
+                        [style.color]="sc(a.status)"
+                        [style.background]="sc(a.status)+'1a'"
+                        [style.border-color]="sc(a.status)+'40'">
+                    {{ a.status }}
+                  </span>
+                </div>
+                <div class="dep-ns">{{ a.namespace }}</div>
+                <div class="dep-meta">
+                  <span>{{ a.replicas }}/{{ a.maxReplicas }}</span>
+                  <span>CPU {{ a.cpuPct }}%</span>
+                  <span>{{ a.latencyMs }}ms P95</span>
+                </div>
+                <div class="dep-bar">
+                  <div class="dep-bar__fill"
+                       [style.width.%]="(a.replicas / a.maxReplicas) * 100"
+                       [ngClass]="'dep-bar__fill--' + a.status">
                   </div>
                 </div>
               </div>
@@ -299,6 +219,172 @@
           </div>
         </div>
       </div>
+
+    </div><!-- /main-grid -->
+
+    <!-- ── CHARTS ──────────────────────────────────────────────────────────── -->
+    <div class="chart-grid">
+      <div class="panel">
+        <div class="panel__hd">
+          <div>
+            <div class="panel__title">Reward Progression</div>
+            <div class="panel__sub">PPO training signal &mdash; rolling average</div>
+          </div>
+          <span class="xbadge xbadge--cyan">{{ rewardTrend }}</span>
+        </div>
+        <div class="panel__bd">
+          <div class="chart-wrap" #rewWrap>
+            <canvas #rewardCvs class="chart-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel__hd">
+          <div>
+            <div class="panel__title">Epsilon Decay</div>
+            <div class="panel__sub">Exploration &rarr; exploitation transition</div>
+          </div>
+          <span class="xbadge xbadge--amber">&#949; = {{ vm.epsilon | number:'1.4-4' }}</span>
+        </div>
+        <div class="panel__bd">
+          <div class="chart-wrap" #epsWrap>
+            <canvas #epsCvs class="chart-canvas"></canvas>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+
+    <!-- ── ARCHITECTURE ─────────────────────────────────────────────────────── -->
+    <div class="panel arch-panel">
+      <div class="panel__hd">
+        <div>
+          <div class="panel__title">MARLS System Architecture</div>
+          <div class="panel__sub">
+            Kubernetes &rarr; Prometheus &rarr; Go Controller &rarr; Flask PPO Agent &#8651; Redis &rarr; Dashboard
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <span class="xbadge xbadge--green" *ngIf="vm.redisAvailable">
+            <span class="lpulse lpulse--sm"></span>Redis Coordinating
+          </span>
+          <span class="xbadge xbadge--cyan">{{ vm.totalAgents }} Agents</span>
+        </div>
+      </div>
+      <div class="panel__bd arch-bd">
+        <div class="arch-nodes">
+          <ng-container *ngFor="let n of archNodes; let last = last">
+            <div class="arch-node"
+                 [style.border-color]="n.color+'50'"
+                 [style.background]="n.color+'0f'">
+              <span class="arch-node__icon">{{ n.icon }}</span>
+              <span class="arch-node__name" [style.color]="n.color">{{ n.name }}</span>
+              <span class="arch-node__sub">{{ n.sub }}</span>
+            </div>
+            <span class="arch-arrow" *ngIf="!last">&rarr;</span>
+          </ng-container>
+        </div>
+        <p class="arch-note">
+          <strong>Redis</strong> connects directly to the Flask RL Agent for multi-agent state coordination &mdash;
+          not to the Go controller. The controller communicates only via <code>POST /predict</code>.
+        </p>
+      </div>
+    </div>
+
+    <!-- ── BOTTOM GRID ───────────────────────────────────────────────────────── -->
+    <div class="bottom-grid">
+
+      <!-- Decisions table -->
+      <div class="panel">
+        <div class="panel__hd">
+          <div>
+            <div class="panel__title">Real-Time Agent Decisions</div>
+            <div class="panel__sub">Live feed across all services</div>
+          </div>
+          <span class="panel__count">{{ vm.totalDecisions | number }} total</span>
+        </div>
+        <div class="tbl-wrap">
+          <p-table [value]="allDecisions"
+                   [scrollable]="true"
+                   scrollHeight="340px"
+                   styleClass="marls-tbl"
+                   [rowHover]="true">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Action</th>
+                <th>Service</th>
+                <th>NS</th>
+                <th>Replicas</th>
+                <th>Reward</th>
+                <th>Confidence</th>
+                <th>Latency</th>
+                <th>Steps</th>
+                <th>Time</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr [class.row-flash]="row.isNew">
+                <td>
+                  <span class="achip" [ngClass]="'achip--' + row.action">
+                    {{ row.action === 'scale_up' ? '&#8593; UP' : row.action === 'scale_down' ? '&#8595; DOWN' : '&#9679; HOLD' }}
+                  </span>
+                </td>
+                <td><span class="svc">{{ row.service }}</span></td>
+                <td class="dim">{{ row.namespace }}</td>
+                <td class="mono">{{ row.replicas }}</td>
+                <td>
+                  <span [class.rp]="row.reward > 0.5" [class.rn]="row.reward <= 0.5">
+                    {{ row.reward > 0 ? '+' : '' }}{{ row.reward | number:'1.3-3' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="iconfy">
+                    <div class="iconfy__track">
+                      <div class="iconfy__fill" [style.width.%]="row.confidence * 100"></div>
+                    </div>
+                    <span class="mono">{{ row.confidence | percent:'1.0-0' }}</span>
+                  </div>
+                </td>
+                <td class="mono">{{ row.latencyMs | number:'1.0-0' }}ms</td>
+                <td class="mono">{{ row.trainingSteps | number }}</td>
+                <td class="dim mono">{{ row.ts | date:'HH:mm:ss' }}</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+
+      <!-- Side panels -->
+      <div class="side-stack">
+        <div class="panel">
+          <div class="panel__hd">
+            <div class="panel__title">PPO Hyperparameters</div>
+          </div>
+          <div class="panel__bd kv-list">
+            <div class="kv-item" *ngFor="let p of hyperparams">
+              <span class="kv-key">{{ p.key }}</span>
+              <span class="kv-val" [style.color]="p.c">{{ p.val }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel__hd">
+            <div class="panel__title">Coordination Layer</div>
+          </div>
+          <div class="panel__bd kv-list">
+            <div class="kv-item" *ngFor="let p of coordItems">
+              <span class="kv-key">{{ p.key }}</span>
+              <span class="kv-val" [style.color]="p.color">{{ p.val }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /bottom-grid -->
+
+    <footer class="dash-footer">
+      MARLS v1.0 &middot; PPO &middot; Go + Flask + Redis &middot; Angular / PrimeNG
+      &middot; Last sync: {{ vm.timestamp | date:'HH:mm:ss' }}
+    </footer>
+
+  </div><!-- /dash -->
 </div>
