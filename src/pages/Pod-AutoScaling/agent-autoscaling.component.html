@@ -1,0 +1,392 @@
+<div class="aas-page"
+     [class.state-up]="lastAction==='scale_up'"
+     [class.state-down]="lastAction==='scale_down'">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <div class="aas-header">
+    <div class="header-left">
+      <span class="header-hex">⬡</span>
+      <div>
+        <h1 class="header-title">Agent Pod Autoscaler</h1>
+        <p class="header-sub">PPO · Proximal Policy Optimisation · Real-time RL Decisions</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="poll-ts" *ngIf="isConnected">⟳ {{ lastPollTs }}</span>
+      <span class="conn-badge" [class.live]="isConnected" [class.offline]="!isConnected">
+        <span class="conn-dot"></span>
+        {{ isConnected ? 'LIVE' : (corsError ? 'CORS ERROR' : 'CONNECTING...') }}
+      </span>
+      <span class="dep-tag">
+        <span class="dep-lbl">AGENTS</span>
+        <span class="dep-val">{{ totalAgents }}</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ── CORS error banner ───────────────────────────────────────────────── -->
+  <div class="cors-banner" *ngIf="corsError">
+    <span class="cors-icon">⚠</span>
+    <div>
+      <strong>CORS Error</strong> — Angular cannot reach <code>http://localhost:5000</code>.
+      Add <code>flask-cors</code> to your Flask app:
+      <code>pip install flask-cors</code> then restart Flask.
+    </div>
+  </div>
+
+  <!-- ── No agents yet banner ───────────────────────────────────────────── -->
+  <div class="no-agents-banner" *ngIf="isConnected && agentKeys.length === 0">
+    <span>🔌</span>
+    <div>
+      Flask is connected but no RL agents are active yet.
+      The agent is created on the first <code>/predict</code> call from your
+      kube-metrics-agent Go binary. Start your k8s controller to begin.
+    </div>
+  </div>
+
+  <!-- ── Agent tabs (dynamic — one tab per active deployment) ────────────── -->
+  <div class="agent-tabs" *ngIf="agentKeys.length > 1">
+    <button class="agent-tab"
+            *ngFor="let key of agentKeys; trackBy: trackByKey"
+            [class.active]="key === selectedKey"
+            (click)="selectAgent(key)">
+      <span class="tab-dot" [style.background]="key === selectedKey ? '#38bdf8' : '#334155'"></span>
+      {{ labelFor(key) }}
+    </button>
+  </div>
+
+  <!-- ── KPI strip ──────────────────────────────────────────────────────── -->
+  <div class="kpi-row" *ngIf="agentKeys.length > 0">
+    <!-- Avg Reward -->
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-icon" style="color:#34d399">◈</span><span class="kpi-label">AVG REWARD</span></div>
+      <div class="kpi-value" [style.color]="avgReward100 > -10 ? '#34d399' : '#f87171'">
+        {{ avgReward100 !== 0 ? avgReward100.toFixed(2) : '—' }}
+      </div>
+      <div class="kpi-sub">last 100 · step {{ trainingSteps }}</div>
+    </div>
+    <!-- Replicas -->
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-icon" style="color:#38bdf8">⬡</span><span class="kpi-label">REPLICAS</span></div>
+      <div class="kpi-value" style="color:#38bdf8">{{ replicas > 0 ? replicas : '—' }}</div>
+      <div class="kpi-sub">{{ podReady }} ready · {{ podPending }} pending</div>
+    </div>
+    <!-- Confidence -->
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-icon" style="color:#a78bfa">◎</span><span class="kpi-label">CONFIDENCE</span></div>
+      <div class="kpi-value" style="color:#a78bfa">{{ (confidence*100).toFixed(1) }}%</div>
+      <div class="kpi-sub">policy entropy</div>
+    </div>
+    <!-- Latest reward -->
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-icon" style="color:#fb923c">⚡</span><span class="kpi-label">LATEST REWARD</span></div>
+      <div class="kpi-value" [style.color]="latestReward >= 0 ? '#34d399' : '#f87171'">
+        {{ decisions.length > 0 ? decisions[0].reward.toFixed(2) : '—' }}
+      </div>
+      <div class="kpi-sub">most recent step</div>
+    </div>
+  </div>
+
+  <!-- ── Main 3-column grid ─────────────────────────────────────────────── -->
+  <div class="main-grid" *ngIf="agentKeys.length > 0">
+
+    <!-- LEFT — 3D Pod Cluster -->
+    <div class="panel pod-panel">
+      <div class="panel-hdr">
+        <span class="panel-title">POD CLUSTER · 3D VIEW</span>
+        <span class="action-chip" [class]="'chip-'+lastAction.replace('_','-')">
+          {{ actionIcon }} {{ lastAction | replace:'_':' ' | uppercase }}
+        </span>
+      </div>
+
+      <div class="scene-wrap">
+        <div class="scene-stage">
+          <div class="ground-disc"></div>
+          <div class="pod-col"
+               *ngFor="let p of podArray; trackBy: trackByIdx"
+               [style.transform]="p.transform"
+               [class.pod-new]="p.isNew"
+               [class.pod-removing]="p.isRemoving">
+            <div class="pod-bar"
+                 [style.height.px]="p.height"
+                 [style.background]="p.gradient">
+              <div class="pod-cap"></div>
+              <div class="pod-ring" [class]="p.status"></div>
+            </div>
+          </div>
+          <div class="burst burst-up"   *ngIf="showScaleUp"></div>
+          <div class="burst burst-down" *ngIf="showScaleDown"></div>
+        </div>
+
+        <div class="announce" *ngIf="showAnnounce" [class]="announceCls">
+          <div class="ann-icon">{{ actionIcon }}</div>
+          <div class="ann-text">{{ announceText }}</div>
+        </div>
+
+        <div class="scene-stats">
+          <div class="rep-count">
+            <span class="rep-num">{{ replicas > 0 ? replicas : '—' }}</span>
+            <span class="rep-lbl">pods</span>
+          </div>
+          <div class="pod-breakdown" *ngIf="replicas > 0">
+            <span class="pb-ready">✓ {{ podReady }}</span>
+            <span class="pb-pend" *ngIf="podPending > 0">
+              <span class="pend-dot"></span>{{ podPending }}⏳
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pod-legend">
+        <span class="leg ready"><i></i>Ready</span>
+        <span class="leg pending"><i></i>Pending</span>
+        <span class="leg new"><i></i>New</span>
+      </div>
+    </div>
+
+    <!-- CENTRE — RL Decision Stream -->
+    <div class="panel decision-panel">
+      <div class="panel-hdr">
+        <span class="panel-title">RL DECISION STREAM</span>
+        <span class="cnt-badge">{{ decisions.length }} decisions logged</span>
+      </div>
+
+      <!-- confidence gauge -->
+      <div class="gauge-row">
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 120 74">
+            <defs>
+              <linearGradient id="gGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#ef4444"/>
+                <stop offset="50%"  stop-color="#f59e0b"/>
+                <stop offset="100%" stop-color="#10b981"/>
+              </linearGradient>
+            </defs>
+            <path d="M 14 62 A 46 46 0 0 1 106 62" fill="none"
+                  stroke="rgba(255,255,255,0.07)" stroke-width="9" stroke-linecap="round"/>
+            <path d="M 14 62 A 46 46 0 0 1 106 62" fill="none"
+                  stroke="url(#gGrad)" stroke-width="9" stroke-linecap="round"
+                  [attr.stroke-dasharray]="confidenceDash" stroke-dashoffset="0"/>
+            <line x1="60" y1="62" [attr.x2]="needleX2" [attr.y2]="needleY2"
+                  stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="60" cy="62" r="4" fill="#fff"/>
+            <text x="60" y="71" text-anchor="middle"
+                  fill="rgba(255,255,255,.3)" font-size="5.5" font-family="monospace">CONFIDENCE</text>
+          </svg>
+          <div class="gauge-val">{{ (confidence*100).toFixed(1) }}%</div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-row"><span class="mk">Last Action</span>
+            <span class="mv" [style.color]="actionColor(lastAction)">
+              {{ lastAction | replace:'_':' ' | uppercase }}
+            </span></div>
+          <div class="meta-row"><span class="mk">Value Est.</span><span class="mv">{{ valueEstimate.toFixed(3) }}</span></div>
+          <div class="meta-row"><span class="mk">Buffer</span><span class="mv">{{ bufferSize }}/8</span></div>
+          <div class="meta-row"><span class="mk">Train Steps</span><span class="mv hi">{{ trainingSteps }}</span></div>
+          <div class="meta-row"><span class="mk">Avg Reward</span>
+            <span class="mv" [style.color]="avgReward100 > -10 ? '#34d399' : '#f87171'">{{ avgReward100.toFixed(2) }}</span></div>
+          <div class="meta-row"><span class="mk">Last Decision</span><span class="mv">{{ lastDecisionTs }}</span></div>
+          <div class="meta-row"><span class="mk">Algorithm</span><span class="mv hi">PPO</span></div>
+          <div class="meta-row"><span class="mk">Device</span><span class="mv">{{ agentDevice }}</span></div>
+        </div>
+      </div>
+
+      <!-- action probability bars (LIVE from policy) -->
+      <div class="prob-section">
+        <div class="section-lbl">ACTION PROBABILITIES · LIVE FROM POLICY</div>
+        <div class="prob-item">
+          <span class="prob-name" style="color:#f87171">↓ Scale Down</span>
+          <div class="prob-track">
+            <div class="prob-fill" style="background:#f87171" [style.width.%]="probScaleDown">
+              <span class="prob-pct">{{ probScaleDown.toFixed(1) }}%</span>
+            </div>
+          </div>
+        </div>
+        <div class="prob-item">
+          <span class="prob-name" style="color:#94a3b8">= Hold</span>
+          <div class="prob-track">
+            <div class="prob-fill" style="background:#94a3b8" [style.width.%]="probNoAction">
+              <span class="prob-pct">{{ probNoAction.toFixed(1) }}%</span>
+            </div>
+          </div>
+        </div>
+        <div class="prob-item">
+          <span class="prob-name" style="color:#34d399">↑ Scale Up</span>
+          <div class="prob-track">
+            <div class="prob-fill" style="background:#34d399" [style.width.%]="probScaleUp">
+              <span class="prob-pct">{{ probScaleUp.toFixed(1) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- live decision feed — every /predict call logged by Flask -->
+      <div class="log-section">
+        <div class="section-lbl">LIVE DECISION FEED · ALL /predict CALLS</div>
+        <div class="log-scroll">
+          <div class="log-row" *ngFor="let d of decisions.slice(0,15); trackBy: trackByIdx"
+               [class]="'log-'+d.action">
+            <span class="lt">{{ d.timestamp | slice:11:19 }}</span>
+            <span class="li" [style.color]="actionColor(d.action)">{{ iconFor(d.action) }}</span>
+            <span class="la" [style.color]="actionColor(d.action)">
+              {{ d.action | replace:'_':' ' | uppercase }}
+            </span>
+            <span class="lr" [class.neg]="d.reward < 0" [class.pos]="d.reward >= 0">
+              {{ d.reward.toFixed(2) }}
+            </span>
+            <span class="lc">{{ (d.confidence*100).toFixed(0) }}%</span>
+            <span class="lrep">{{ d.replicas }}p</span>
+          </div>
+          <div class="log-empty" *ngIf="decisions.length === 0">
+            Waiting for /predict calls from kube-metrics-agent…
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT — Training Metrics -->
+    <div class="panel metrics-panel">
+      <div class="panel-hdr">
+        <span class="panel-title">TRAINING METRICS</span>
+        <span class="step-chip">Step {{ trainingSteps }}</span>
+      </div>
+
+      <!-- reward chart — from real training steps -->
+      <div class="chart-block">
+        <div class="chart-lbl">AVG REWARD PER TRAINING STEP</div>
+        <div class="chart-body" *ngIf="rewardPoints; else noReward">
+          <div class="chart-ylabels">
+            <span>{{ chartMax.toFixed(0) }}</span>
+            <span>0</span>
+            <span>{{ chartMin.toFixed(0) }}</span>
+          </div>
+          <svg [attr.viewBox]="'0 0 '+CW+' '+CH" class="chart-svg" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="rGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%"   stop-color="#38bdf8" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path [attr.d]="rewardArea" fill="url(#rGrad)"/>
+            <polyline [attr.points]="rewardPoints" fill="none" stroke="#38bdf8"
+                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="0" [attr.y1]="zeroY" [attr.x2]="CW" [attr.y2]="zeroY"
+                  stroke="rgba(255,255,255,.12)" stroke-width="1" stroke-dasharray="3,3"/>
+          </svg>
+        </div>
+        <ng-template #noReward>
+          <div class="chart-empty">Waiting for training steps…</div>
+        </ng-template>
+      </div>
+
+      <!-- value loss chart -->
+      <div class="chart-block" *ngIf="lossPoints">
+        <div class="chart-lbl">VALUE LOSS PER TRAINING STEP</div>
+        <div class="chart-body">
+          <svg [attr.viewBox]="'0 0 '+CW+' '+CH" class="chart-svg" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="lGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%"   stop-color="#f59e0b" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path [attr.d]="lossArea" fill="url(#lGrad)"/>
+            <polyline [attr.points]="lossPoints" fill="none" stroke="#f59e0b"
+                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- training step table -->
+      <div class="train-table" *ngIf="trainingSteps_history.length > 0">
+        <div class="section-lbl">RECENT TRAINING STEPS</div>
+        <div class="tt-scroll">
+          <div class="tt-row hdr">
+            <span>STEP</span><span>POL LOSS</span><span>VAL LOSS</span>
+            <span>REWARD</span><span>ENTROPY</span>
+          </div>
+          <div class="tt-row"
+               *ngFor="let t of trainingSteps_history.slice().reverse().slice(0,8); trackBy: trackByIdx">
+            <span class="tt-step">{{ t.step }}</span>
+            <span [style.color]="Math.abs(t.policy_loss) < 0.05 ? '#34d399' : '#f87171'">{{ t.policy_loss.toFixed(4) }}</span>
+            <span style="color:#f59e0b">{{ t.value_loss.toFixed(0) }}</span>
+            <span [style.color]="t.avg_reward > -10 ? '#34d399' : '#f87171'">{{ t.avg_reward.toFixed(2) }}</span>
+            <span style="color:#a78bfa">{{ t.entropy.toFixed(3) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- live cluster metrics -->
+      <div class="live-metrics-block">
+        <div class="section-lbl">LIVE CLUSTER METRICS</div>
+        <div class="metric-bar-item" *ngFor="let m of metricBars">
+          <span class="mb-label">{{ m.label }}</span>
+          <div class="mb-track">
+            <div class="mb-fill" [style.width.%]="m.pct" [style.background]="m.color"></div>
+          </div>
+          <span class="mb-val">{{ m.display }}</span>
+        </div>
+      </div>
+
+      <!-- stats grid -->
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="sb-lbl">REPLICAS</span>
+          <span class="sb-val" style="color:#38bdf8">{{ replicas || '—' }}</span>
+        </div>
+        <div class="stat-box">
+          <span class="sb-lbl">POD READY</span>
+          <span class="sb-val" style="color:#34d399">{{ podReady }}</span>
+        </div>
+        <div class="stat-box">
+          <span class="sb-lbl">POD PENDING</span>
+          <span class="sb-val" [style.color]="podPending > 0 ? '#f59e0b' : '#64748b'">{{ podPending }}</span>
+        </div>
+        <div class="stat-box">
+          <span class="sb-lbl">BUFFER</span>
+          <span class="sb-val" style="color:#a78bfa">{{ bufferSize }}/8</span>
+        </div>
+        <div class="stat-box">
+          <span class="sb-lbl">REQUEST/s</span>
+          <span class="sb-val" style="color:#fb923c">
+            {{ requestRate > 0 ? requestRate.toFixed(1) : '—' }}
+          </span>
+        </div>
+        <div class="stat-box">
+          <span class="sb-lbl">ERROR RATE</span>
+          <span class="sb-val" [style.color]="errorRate > 0 ? '#f87171' : '#34d399'">
+            {{ (errorRate*100).toFixed(1) }}%
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Scaling Timeline ────────────────────────────────────────────────── -->
+  <div class="panel timeline-panel" *ngIf="agentKeys.length > 0">
+    <div class="panel-hdr">
+      <span class="panel-title">SCALING TIMELINE · {{ labelFor(selectedKey) }}</span>
+      <span class="cnt-badge">{{ scalingEvents.length }} events</span>
+    </div>
+    <div class="timeline-track" *ngIf="scalingEvents.length > 0; else noEvents">
+      <div class="tl-item" *ngFor="let ev of scalingEvents; trackBy: trackByIdx"
+           [class]="'tl-'+ev.action" [pTooltip]="ev.tooltip" tooltipPosition="top">
+        <div class="tl-node">{{ ev.icon }}</div>
+        <div class="tl-line"></div>
+        <div class="tl-meta">
+          <span class="tl-act">{{ ev.action | replace:'_':' ' | uppercase }}</span>
+          <span class="tl-rep">{{ ev.from }}→{{ ev.to }}</span>
+          <span class="tl-t">{{ ev.time }}</span>
+        </div>
+      </div>
+    </div>
+    <ng-template #noEvents>
+      <div class="tl-empty">
+        No scaling events yet — timeline populates when the RL agent decides to
+        <strong>scale_up</strong> or <strong>scale_down</strong>.
+        Currently seeing: <code>{{ lastAction }}</code>
+      </div>
+    </ng-template>
+  </div>
+
+</div>
