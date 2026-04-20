@@ -20,29 +20,29 @@ import { SelectButton } from 'primeng/selectbutton';
 import { Checkbox } from 'primeng/checkbox';
 
 
-import {IReport,ReportDto} from "../../../dto/Report.dto";
-import {ReportService} from "../../../services/Report.service";
+import {IOrganization,OrganizationDto} from "../../../dto/Organization.dto";
+import {OrganizationService} from "../../../services/Organization.service";
 
 @Component({
-  selector: 'app-create-update-report',
+  selector: 'app-create-update-organization',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FloatLabel, ButtonModule, InputTextModule, DatePicker, PasswordModule, SelectButton, DropdownModule, Select, Checkbox, FormsModule],
-  templateUrl: './create-update-report.html',
-  styleUrl: './create-update-report.scss',
+  templateUrl: './create-update-organization.html',
+  styleUrl: './create-update-organization.scss',
     providers: [
     ConfirmationService,
     DialogService,
-    ReportService
+    OrganizationService
     
   ]
 })
 
-export class CreateUpdateReport implements OnInit, OnDestroy {
+export class CreateUpdateOrganization implements OnInit, OnDestroy {
 
-  report: ReportDto = {};
+  organization: OrganizationDto = {};
   private subscription: Subscription = new Subscription();
   submitted: boolean = false;
-  reportForm!: FormGroup;
+  organizationForm!: FormGroup;
     isLoadingClient: boolean = false;
     isLoading: boolean = false;
     
@@ -51,7 +51,7 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
  
 
   constructor(
-    private reportService: ReportService,
+    private organizationService: OrganizationService,
     private messageService: MessageService,
     public config: DynamicDialogConfig,
     public ref: DynamicDialogRef,
@@ -71,20 +71,38 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
         
             
         
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
 
         //Form Control with Validation
-        this.reportForm = this.fb.group({
-                ReportId: [''],
-                Title: [''],
-                Description: [''],
-                Author: [''],
+        this.organizationForm = this.fb.group({
+                OrganizationId: [''],
+                Name: [''],
+                Address: [''],
+                Location: [''],
+                PhoneNumber: [''],
+                Email: [''],
+                Website: [''],
+                CompanyLogo: [''],
+                InvoiceTerms: [''],
+                InvoiceNotes: [''],
     });
 
         
 
-        //edit report if requested by the row click
+        //edit organization if requested by the row click
         if (this.config.data != null) {
-            this.editReport(this.config.data)
+            this.editOrganization(this.config.data)
         }
 
     }
@@ -98,9 +116,9 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
     save() {
         this.submitted = true;   
 
-        if (this.reportForm.invalid) {
-            Object.keys(this.reportForm.controls).forEach((key) => {
-                const control = this.reportForm.get(key);
+        if (this.organizationForm.invalid) {
+            Object.keys(this.organizationForm.controls).forEach((key) => {
+                const control = this.organizationForm.get(key);
                 if (control) {
                     control.markAsTouched();
                     control.markAsDirty();
@@ -111,11 +129,11 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
 
         this.isLoading = true;
 
-        const report = this.reportForm.value;
+        const organization = this.organizationForm.value;
 
-        if (report.ReportId) {
+        if (organization.OrganizationId) {
             this.subscription.add(
-                this.reportService.updateReport(report).pipe(
+                this.organizationService.updateOrganization(organization).pipe(
                     finalize(() => {
                         this.isLoading = false;
                     })
@@ -124,7 +142,7 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
                         this.messageService.add({
                             severity: 'success',
                             summary: 'Successful',
-                            detail: `Report Updated Successfully.`,
+                            detail: `Organization Updated Successfully.`,
                             life: 3000
                         });
                     }
@@ -133,14 +151,14 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
                     this.messageService.add({
                         severity: 'error',
                         summary: 'Failed',
-                        detail: `Failed To Update Report.`,
+                        detail: `Failed To Update Organization.`,
                         life: 3000
                     });
                 })
             );
         } else {
             this.subscription.add(
-                this.reportService.createReport(report).pipe(
+                this.organizationService.createOrganization(organization).pipe(
                     finalize(() => {
                         this.isLoading = false;
                     })
@@ -149,7 +167,7 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
                         this.messageService.add({
                             severity: 'success',
                             summary: 'Successful',
-                            detail: `Report Created Successfully.`,
+                            detail: `Organization Created Successfully.`,
                             life: 3000
                         });
                     }
@@ -158,7 +176,7 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
                     this.messageService.add({
                         severity: 'error',
                         summary: 'Failed',
-                        detail: `Failed To Create Report.`,
+                        detail: `Failed To Create Organization.`,
                         life: 3000
                     });
                 })
@@ -172,10 +190,10 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
     //close dialog instances
     CloseInstances(event?: Event) {
         event?.preventDefault();
-        this.ref.close(this.reportForm.value);
-        this.reportForm.reset();
+        this.ref.close(this.organizationForm.value);
+        this.organizationForm.reset();
         this.submitted = false
-        this.report = {}
+        this.organization = {}
 
     }
 
@@ -184,10 +202,22 @@ export class CreateUpdateReport implements OnInit, OnDestroy {
         this.subscription.unsubscribe();
     }
 
-//edit report
-  editReport(report: ReportDto) {
-    this.report = {...report};
-    this.reportForm.patchValue({...report});
+//edit organization
+  editOrganization(organization: OrganizationDto) {
+    this.organization = {...organization};
+    this.organizationForm.patchValue({...organization});
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
     
         
     

@@ -6,12 +6,12 @@ import { DashboardComponent } from './layout/dashboard/dashboard.component';
 import { AppNotfoundComponent } from './layout/notfound/app.notfound.component';
 import { UserComponent } from '../pages/User/User.component';
 import { RoleComponent } from '../pages/Role/Role.component';
-import { ReportComponent } from '../pages/Report/Report.component';
 import { AgentDecisionsComponent } from '../pages/Agent-Decisions/agent-decisions.component';
 import { DeploymentsComponent } from '../pages/Deployments/deployments.component';
 import { AgentAutoscalingComponent } from '../pages/Pod-AutoScaling/agent-autoscaling.component';
 import { GrafanaComponent } from '../pages/grafana/grafana.component';
 import { AgentMetricsComponent } from '../pages/Training-Metrics/agent-metrics.component';
+import { OrganizationComponent } from '../pages/Organization/Organization.component';
 
 export const routes: Routes = [
   {
@@ -65,6 +65,12 @@ export const routes: Routes = [
       {
         path: 'grafana',
         component:GrafanaComponent,
+        canActivate: [AuthGuard],
+        data: { requiredRoles: 'DTO5232' },
+      },
+            {
+        path: 'organization',
+        component: OrganizationComponent,
         canActivate: [AuthGuard],
         data: { requiredRoles: 'DTO5232' },
       },

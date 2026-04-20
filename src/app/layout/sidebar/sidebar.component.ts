@@ -289,90 +289,54 @@ export class MainsectionComponent implements OnInit {
   filterSidebarNavs() {
     if (this.userRole) {
       const allNavItems = [
-        { icon: 'pi pi-th-large', title: 'Dashboard', routerLink: '', id: '' },
+          {
+            icon: 'pi pi-home', // better than pi-th-large
+            title: 'Dashboard',
+            routerLink: '',
+            id: '',
+          },
 
-        {
-          icon: 'pi pi-sitemap', 
-          title: 'Agent Decisions',
-          routerLink: '/agent-decisions',
-          id: 'DTO5226',
-        },
+          {
+            icon: 'pi pi-share-alt', // decisions / flow / branching logic
+            title: 'Agent Decisions',
+            routerLink: '/agent-decisions',
+            id: 'DTO5226',
+          },
 
-        {
-          icon: 'pi pi-box', // 
-          title: 'Training Metrics',
-          routerLink: '/training-metrics',
-          id: 'DTO5225',
-        },
+          {
+            icon: 'pi pi-chart-line', // metrics = graphs 📈
+            title: 'Training Metrics',
+            routerLink: '/training-metrics',
+            id: 'DTO5225',
+          },
 
-        {
-          icon: 'pi pi-upload', // ⬆️ Order to Admin
-          title: 'Q-Value Analysis',
-          routerLink: '/order-to-admin',
-          id: 'DTO5228',
-        },
+          {
+            icon: 'pi pi-cloud-upload', // deployment = pushing to cloud
+            title: 'Deployment',
+            routerLink: '/deployment',
+            id: 'DTO5224',
+          },
 
-        {
-          icon: 'pi pi-server', // 👥 Customer Orders
-          title: 'Deployment',
-          routerLink: '/deployment',
-          id: 'DTO5224',
-        },
+          {
+            icon: 'pi pi-sync', // autoscaling = dynamic / scaling
+            title: 'Pod-Auto-Scaling',
+            routerLink: '/pod-auto-scaling',
+            id: 'DTO5223',
+          },
 
-        {
-          icon: 'pi pi-gauge', // 📩 Order to Merchant
-          title: 'Performance',
-          routerLink: '/order-to-merchant',
-          id: 'DTO5227',
-        },
+          {
+            icon: 'pi pi-chart-bar', // Grafana = dashboards/visualization
+            title: 'Grafana',
+            routerLink: '/grafana',
+          },
 
-        // {
-        //   icon: 'pi pi-briefcase', // 💼 Merchants
-        //   title: 'Merchants',
-        //   routerLink: '/merchants',
-        //   id: 'DTO5222',
-        // },
-
-        // {
-        //   icon: 'pi pi-id-card', // 🪪 Resellers
-        //   title: 'Resellers',
-        //   routerLink: '/resellers',
-        //   id: 'DTO5230',
-        // },
-
-        {
-          icon: 'pi pi-user', // 👤 Customers
-          title: 'Pod-Auto-Scaling',
-          routerLink: '/pod-auto-scaling',
-          id: 'DTO5223',
-        },
-
-        {
-          icon: 'pi pi-file-excel',
-          title: 'Reports',
-          routerLink: '/report',
-          // id: 'DTO5210',
-        },
-         {
-          icon: 'pi pi-file-excel',
-          title: 'Grafana',
-          routerLink: '/grafana',
-          // id: 'DTO5210',
-        },
-        {
-          icon: 'pi pi-cog',
-          title: 'Settings',
-          routerLink: '/organization',
-           id: 'DTO5232',
-        },
-
-        // Commented out items (keeping them in code but not showing in UI)
-        /* 
-        { icon: 'pi pi-users', title: 'Users', routerLink: '/user', id: 'DTO5212' },
-        { icon: 'pi pi-sitemap', title: 'Branch', routerLink: '/branch', id: 'DTO5234' },
-        { icon: 'pi pi-key', title: 'Role', routerLink: '/role', id: 'DTO5214' },
-        */
-      ];
+          {
+            icon: 'pi pi-cog', // settings is fine
+            title: 'Settings',
+            routerLink: '/organization',
+            id: 'DTO5232',
+          },
+        ];
 
       const filteredItems = allNavItems.filter((item) => {
         if (!item.id) {

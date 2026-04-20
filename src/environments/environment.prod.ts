@@ -1,11 +1,9 @@
 export const environment = {
   production: false,
-  serverUrl: ' https://user-mgt-service.dev-sachin.co.uk/User-Mgt/api',
-  ReportUrl: 'http://127.0.0.1:8886/Reports/api',
-  OrganizeUrl: 'http://127.0.0.1:8888/Organizations/api',
- 
+  serverUrl: ' https://user-mgt-service.dev-sachin.co.uk/User-Mgt/api', 
   LogoLight: '#',
   LogoDark: '#',
+  OrganizeUrl: 'http://127.0.0.1:8888/Organizations/api',
   WORKSPACEID: 'WS680',
   auth0: {
     domain: 'sachinayeshmantha.uk.auth0.com',
