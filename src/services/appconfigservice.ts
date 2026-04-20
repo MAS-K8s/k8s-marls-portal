@@ -27,7 +27,7 @@ export class AppConfigService {
         preset: 'Aura',
         primary: 'amber',
         surface: 'slate',
-        darkTheme: false,
+        darkTheme: true,
     });
 
     document = inject(DOCUMENT);
