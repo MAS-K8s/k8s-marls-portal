@@ -1,0 +1,240 @@
+<form
+  [formGroup]="organizationForm"
+  class="card grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4"
+>
+
+
+    
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Name"
+        formControlName="Name"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Name">Name</label>
+    </p-floatlabel>
+    <small
+          *ngIf="organizationForm.get('Name')?.invalid && organizationForm.get('Name')?.touched"
+          class="text-red-500 text-xs mt-1"
+        >
+          Name is required
+        </small>
+
+
+  
+
+     
+  </div>
+    
+
+    
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Address"
+        formControlName="Address"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Address">Address</label>
+    </p-floatlabel>
+    <small
+          *ngIf="organizationForm.get('Address')?.invalid && organizationForm.get('Address')?.touched"
+          class="text-red-500 text-xs mt-1"
+        >
+          Address is required
+        </small>
+
+
+  
+
+     
+  </div>
+    
+
+    
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Location"
+        formControlName="Location"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Location">Location</label>
+    </p-floatlabel>
+    <small
+          *ngIf="organizationForm.get('Location')?.invalid && organizationForm.get('Location')?.touched"
+          class="text-red-500 text-xs mt-1"
+        >
+          Location is required
+        </small>
+
+
+  
+
+     
+  </div>
+    
+
+      
+      <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="PhoneNumber"
+        formControlName="PhoneNumber"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="PhoneNumber">Phone Number</label>
+    </p-floatlabel>
+    <small
+          *ngIf="organizationForm.get('PhoneNumber')?.invalid && organizationForm.get('PhoneNumber')?.touched"
+          class="text-red-500 text-xs mt-1"
+        >
+          Phone Number is required
+        </small>
+    
+
+     
+  </div>
+    
+
+      
+      <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Email"
+        formControlName="Email"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Email">Email</label>
+    </p-floatlabel>
+    <small
+          *ngIf="organizationForm.get('Email')?.invalid && organizationForm.get('Email')?.touched"
+          class="text-red-500 text-xs mt-1"
+        >
+          Email is required
+        </small>
+    
+
+     
+  </div>
+    
+
+    
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="Website"
+        formControlName="Website"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="Website">Website</label>
+    </p-floatlabel>
+    <small
+          *ngIf="organizationForm.get('Website')?.invalid && organizationForm.get('Website')?.touched"
+          class="text-red-500 text-xs mt-1"
+        >
+          Website is required
+        </small>
+
+
+  
+
+     
+  </div>
+    
+
+    
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="CompanyLogo"
+        formControlName="CompanyLogo"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="CompanyLogo">Company Logo</label>
+    </p-floatlabel>
+
+
+  
+
+     
+  </div>
+    
+
+    
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="InvoiceTerms"
+        formControlName="InvoiceTerms"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="InvoiceTerms">Invoice Terms</label>
+    </p-floatlabel>
+
+
+  
+
+     
+  </div>
+    
+
+    
+  <div>
+    <p-floatlabel class="w-full mt-3">
+      <input
+        pInputText
+        id="InvoiceNotes"
+        formControlName="InvoiceNotes"
+        autocomplete="off"
+        class="w-full"
+      />
+      <label for="InvoiceNotes">Invoice Notes</label>
+    </p-floatlabel>
+
+
+  
+
+     
+  </div>
+    
+</form>
+
+<!-- Save and Close Buttons -->
+<div class="flex justify-evenly sm:justify-end sm:gap-4 mt-10">
+  <div>
+    <p-button
+      label="Close"
+      icon="pi pi-times"
+      outlined="true"
+      class="w-full sm:w-auto"
+      (click)="CloseInstances($event)"
+    ></p-button>
+  </div>
+  <div>
+    <p-button
+      label="Save"
+      icon="pi pi-save"
+      [loading]="isLoading"
+      class="w-full sm:w-auto"
+      (click)="save()"
+    ></p-button>
+  </div>
+</div>
