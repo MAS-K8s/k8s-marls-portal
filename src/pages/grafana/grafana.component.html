@@ -1,0 +1,173 @@
+<div class="grafana-root">
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow--a"></div>
+  <div class="bg-glow bg-glow--b"></div>
+
+  <div class="g-content">
+
+    <!-- ── HEADER ──────────────────────────────────────────────────────── -->
+    <header class="g-header">
+      <div class="g-header__left">
+        <div class="g-logo">📊</div>
+        <div>
+          <h1 class="g-title">Grafana <span>Observability</span></h1>
+          <p class="g-sub">Live Kubernetes metrics · Prometheus datasource · 136.118.53.99:30810</p>
+        </div>
+      </div>
+      <div class="g-header__right">
+        <div class="time-range-btns">
+          <button class="tr-btn" *ngFor="let r of timeRanges"
+                  [class.tr-btn--active]="selectedRange === r.value"
+                  (click)="setRange(r.value)">
+            {{ r.label }}
+          </button>
+        </div>
+        <button class="refresh-btn" (click)="refreshAll()" [class.spinning]="refreshing">
+          <i class="pi pi-refresh"></i>
+        </button>
+        <a class="open-btn" [href]="grafanaBase" target="_blank" rel="noopener">
+          Open Grafana ↗
+        </a>
+      </div>
+    </header>
+
+    <!-- ── STATUS BANNER ────────────────────────────────────────────────── -->
+    <div class="status-row">
+      <div class="status-card" *ngFor="let s of statusCards">
+        <div class="status-card__icon" [style.color]="s.color">{{ s.icon }}</div>
+        <div>
+          <div class="status-card__label">{{ s.label }}</div>
+          <div class="status-card__val" [style.color]="s.color">{{ s.value }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETUP GUIDE (shown when iframe blocked) ───────────────────────── -->
+    <div class="setup-guide" *ngIf="showSetupGuide">
+      <div class="setup-guide__header" (click)="showSetupGuide = !showSetupGuide">
+        <div class="setup-guide__icon">⚙</div>
+        <div>
+          <div class="setup-guide__title">Enable Grafana Embedding — Quick Setup</div>
+          <div class="setup-guide__sub">Required once to allow iframe rendering in Angular</div>
+        </div>
+        <i class="pi pi-times setup-guide__close"></i>
+      </div>
+      <div class="setup-steps">
+        <div class="step" *ngFor="let s of setupSteps; let i = index">
+          <div class="step__num">{{ i + 1 }}</div>
+          <div class="step__body">
+            <div class="step__title">{{ s.title }}</div>
+            <code class="step__code" *ngIf="s.code">{{ s.code }}</code>
+            <p class="step__desc" *ngIf="s.desc">{{ s.desc }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PANEL GRID ────────────────────────────────────────────────────── -->
+    <div class="panel-grid">
+
+      <div class="g-panel" *ngFor="let panel of panels"
+           [class.g-panel--wide]="panel.wide">
+        <div class="g-panel__head">
+          <div>
+            <div class="g-panel__title">{{ panel.title }}</div>
+            <div class="g-panel__sub">{{ panel.sub }}</div>
+          </div>
+          <div class="g-panel__actions">
+            <span class="g-badge g-badge--{{ panel.accent }}">{{ panel.metric }}</span>
+            <a class="icon-link" [href]="panel.directUrl" target="_blank" rel="noopener"
+               title="Open in Grafana">
+              <i class="pi pi-external-link"></i>
+            </a>
+          </div>
+        </div>
+        <div class="g-panel__body">
+          <iframe
+            *ngIf="embeddingEnabled"
+            [src]="panel.safeUrl"
+            class="g-iframe"
+            frameborder="0"
+            loading="lazy"
+            [title]="panel.title">
+          </iframe>
+          <div class="g-placeholder" *ngIf="!embeddingEnabled">
+            <div class="g-placeholder__icon">{{ panel.icon }}</div>
+            <div class="g-placeholder__title">{{ panel.title }}</div>
+            <div class="g-placeholder__sub">
+              Enable embedding to render this panel inline
+            </div>
+            <a class="g-placeholder__link" [href]="panel.directUrl" target="_blank" rel="noopener">
+              View in Grafana ↗
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /panel-grid -->
+
+    <!-- ── FULL DASHBOARD EMBED ────────────────────────────────────────── -->
+    <div class="g-panel g-panel--full">
+      <div class="g-panel__head">
+        <div>
+          <div class="g-panel__title">Full Kubernetes Dashboard</div>
+          <div class="g-panel__sub">Complete Grafana dashboard — kiosk mode</div>
+        </div>
+        <div class="g-panel__actions">
+          <button class="tr-btn tr-btn--active" (click)="toggleFullDash()">
+            {{ showFullDash ? 'Collapse' : 'Expand' }}
+          </button>
+          <a class="open-btn" [href]="kioskUrl" target="_blank" rel="noopener">
+            Fullscreen ↗
+          </a>
+        </div>
+      </div>
+      <div class="g-panel__body" *ngIf="showFullDash">
+        <iframe
+          *ngIf="embeddingEnabled"
+          [src]="fullDashSafeUrl"
+          class="g-iframe g-iframe--full"
+          frameborder="0"
+          title="Kubernetes Full Dashboard">
+        </iframe>
+        <div class="g-placeholder g-placeholder--full" *ngIf="!embeddingEnabled">
+          <div class="g-placeholder__icon">📊</div>
+          <div class="g-placeholder__title">Full Dashboard Embed</div>
+          <div class="g-placeholder__sub">Requires embedding to be enabled in grafana.ini</div>
+          <a class="g-placeholder__link" [href]="kioskUrl" target="_blank" rel="noopener">
+            Open Full Dashboard ↗
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── GRAFANA API SECTION ────────────────────────────────────────── -->
+    <div class="g-panel api-panel">
+      <div class="g-panel__head">
+        <div>
+          <div class="g-panel__title">Grafana HTTP API Integration</div>
+          <div class="g-panel__sub">Pull Prometheus metrics directly — no iframe needed</div>
+        </div>
+        <span class="g-badge g-badge--amber">Optional</span>
+      </div>
+      <div class="g-panel__body api-body">
+        <div class="api-card" *ngFor="let q of promQueries">
+          <div class="api-card__top">
+            <div class="api-card__name">{{ q.name }}</div>
+            <span class="g-badge g-badge--{{ q.accent }}">{{ q.category }}</span>
+          </div>
+          <code class="api-card__query">{{ q.query }}</code>
+          <div class="api-card__desc">{{ q.desc }}</div>
+          <a class="api-card__link" [href]="buildExploreUrl(q.query)" target="_blank" rel="noopener">
+            Explore in Grafana ↗
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <footer class="g-footer">
+      Grafana at 136.118.53.99:30810 · Prometheus datasource · MARLS Observability Layer
+    </footer>
+
+  </div>
+</div>
