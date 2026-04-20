@@ -1,726 +1,522 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import {
+  Component, OnInit, OnDestroy, AfterViewInit,
+  ViewChild, ElementRef, ChangeDetectorRef
+} from '@angular/core';
+import { CommonModule, DecimalPipe, DatePipe, PercentPipe } from '@angular/common';
+import { trigger, transition, style, animate } from '@angular/animations';
+import { interval, Subscription } from 'rxjs';
+
+import { TableModule }  from 'primeng/table';
+import { TagModule }    from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
-import { ChartModule } from 'primeng/chart';
-import { TableModule } from 'primeng/table';
-import { TagModule } from 'primeng/tag';
-import { CardModule } from 'primeng/card';
-import { Router } from '@angular/router';
 
-interface AgentActivity {
-  id: string;
+// ── Adjust this path to wherever you placed the service ──────────────────────
+import {
+  MarlsDashboardService,
+  MarlsVM, AgentVM, AgentDecision, TrainingStep,
+} from '../../../services/Dashboard.service';
+
+interface DecisionRow {
+  action: string;
   service: string;
-  action: 'scale-up' | 'scale-down' | 'no-action';
-  replicas: string;
-  reward: number;
-  timestamp: string;
-}
-
-interface Deployment {
-  name: string;
   namespace: string;
-  replicas: string;
-  status: 'healthy' | 'scaling' | 'warning';
-  progress: number;
-  maxReplicas: number;
+  replicas: number;
+  reward: number;
+  confidence: number;
+  latencyMs: number;
+  trainingSteps: number;
+  ts: Date;
+  isNew: boolean;
 }
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [
-    CommonModule,
-    FormsModule,
-    ButtonModule,
-    ChartModule,
-    TableModule,
-    TagModule,
-    CardModule,
+    CommonModule, DecimalPipe, DatePipe, PercentPipe,
+    TableModule, TagModule, ButtonModule,
   ],
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.scss',
+  styleUrl:    './dashboard.component.scss',
+  animations: [
+    trigger('fadeUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(14px)' }),
+        animate('380ms ease', style({ opacity: 1, transform: 'none' })),
+      ]),
+    ]),
+  ],
 })
-export class DashboardComponent implements OnInit {
-  // Main metrics
-  avgReward: number = 0.480;
-  epsilon: number = 0.6200;
-  latency: number = 91;
-  latencyTrend: string = '↓5 ↑2';
-  replicas: number = 14;
-  replicasTrend: string = '↓5 ↑2';
+export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
-  // Training status
-  trainingActive: boolean = true;
-  networkStatus: string = 'LIVE';
+  // ── Canvas + wrapper refs ─────────────────────────────────────────────────
+  @ViewChild('nnCanvas')  nnRef!:   ElementRef<HTMLCanvasElement>;
+  @ViewChild('nnWrap')    nnWrap!:  ElementRef<HTMLDivElement>;   // ✅ wrapper for real width
+  @ViewChild('cpuDonut')  cpuRef!:  ElementRef<HTMLCanvasElement>;
+  @ViewChild('memDonut')  memRef!:  ElementRef<HTMLCanvasElement>;
+  @ViewChild('rewardCvs') rewRef!:  ElementRef<HTMLCanvasElement>;
+  @ViewChild('rewWrap')   rewWrap!: ElementRef<HTMLDivElement>;
+  @ViewChild('epsCvs')    epsRef!:  ElementRef<HTMLCanvasElement>;
+  @ViewChild('epsWrap')   epsWrap!: ElementRef<HTMLDivElement>;
 
-  // Resource utilization
-  cpuUsage: number = 65;
-  memoryUsage: number = 59;
-  cpuAvg: number = 65.3;
-  memAvg: number = 57.8;
+  // ── Live state ────────────────────────────────────────────────────────────
+  vm: MarlsVM | null = null;
+  connected   = false;
+  loading     = true;
+  errorMsg    = '';
+  now         = new Date();
 
-  // Chart data
-  rewardProgressData: any;
-  rewardProgressOptions: any;
-  epsilonDecayData: any;
-  epsilonDecayOptions: any;
-  neuralNetworkNodes: any[] = [];
+  // ── Derived display data ──────────────────────────────────────────────────
+  kpiCards:    any[] = [];
+  headerStats: any[] = [];
+  ppoStats:    any[] = [];
+  coordItems:  any[] = [];
+  allDecisions: DecisionRow[] = [];
+  avgMem       = 0;
+  rewardTrend  = '—';
 
-  // Agent activities
-  agentActivities: AgentActivity[] = [
-    {
-      id: '1',
-      service: 'api-gateway',
-      action: 'scale-up',
-      replicas: '3 → 5',
-      reward: 0.650,
-      timestamp: '17:15:36'
-    },
-    {
-      id: '2',
-      service: 'api-gateway',
-      action: 'scale-up',
-      replicas: '5 → 5',
-      reward: 0.450,
-      timestamp: '17:15:36'
-    },
-    {
-      id: '3',
-      service: 'payment-service',
-      action: 'scale-up',
-      replicas: '2 → 3',
-      reward: 0.720,
-      timestamp: '17:15:36'
-    },
-    {
-      id: '4',
-      service: 'user-service',
-      action: 'scale-down',
-      replicas: '5 → 4',
-      reward: 0.300,
-      timestamp: '17:15:36'
-    },
-    {
-      id: '5',
-      service: 'notification-worker',
-      action: 'no-action',
-      replicas: '2 → 2',
-      reward: 0.280,
-      timestamp: '17:15:36'
-    },
-    {
-      id: '6',
-      service: 'api-gateway',
-      action: 'scale-up',
-      replicas: '4 → 6',
-      reward: 0.580,
-      timestamp: '17:15:36'
-    }
+  // ── Static config ─────────────────────────────────────────────────────────
+  readonly nnLegend = [
+    { label: 'Input (18D)',  color: '#22d3ee' },
+    { label: 'Hidden (128)', color: '#3b82f6' },
+    { label: 'Actions (3)',  color: '#8b5cf6' },
   ];
 
-  // Deployments
-  deployments: Deployment[] = [
-    {
-      name: 'api-gateway',
-      namespace: 'production',
-      replicas: '5 /20',
-      status: 'healthy',
-      progress: 25,
-      maxReplicas: 20
-    },
-    {
-      name: 'payment-service',
-      namespace: 'production',
-      replicas: '3 /10',
-      status: 'scaling',
-      progress: 30,
-      maxReplicas: 10
-    },
-    {
-      name: 'user-service',
-      namespace: 'production',
-      replicas: '4 /15',
-      status: 'healthy',
-      progress: 27,
-      maxReplicas: 15
-    },
-    {
-      name: 'notification-worker',
-      namespace: 'workers',
-      replicas: '2 /8',
-      status: 'healthy',
-      progress: 25,
-      maxReplicas: 8
-    }
+  readonly hyperparams = [
+    { key: 'Algorithm',     val: 'PPO',          c: '#22d3ee' },
+    { key: 'State Size',    val: '18 features',  c: '#8b5cf6' },
+    { key: 'Action Space',  val: '3 discrete',   c: '#10b981' },
+    { key: 'Learning Rate', val: '1e-4 (Adam)',  c: '#f59e0b' },
+    { key: 'Clip ε',        val: '0.20',         c: '#3b82f6' },
+    { key: 'GAE λ',         val: '0.95',         c: '#ec4899' },
+    { key: 'Discount γ',    val: '0.99',         c: '#22d3ee' },
+    { key: 'Buffer',        val: '32 steps',     c: '#8b5cf6' },
+    { key: 'Epochs',        val: '2 per update', c: '#10b981' },
+    { key: 'Mini-batch',    val: '8',            c: '#f59e0b' },
+    { key: 'Entropy Coeff', val: '0.05',         c: '#3b82f6' },
+    { key: 'Value Coeff',   val: '0.10',         c: '#ec4899' },
   ];
 
-  totalDecisions: number = 10;
-  activeDeployments: number = 4;
+  readonly archNodes = [
+    { icon: '☸',  name: 'Kubernetes',    sub: 'Cluster',      color: '#22d3ee' },
+    { icon: '📈', name: 'Prometheus',    sub: 'Metrics',      color: '#f59e0b' },
+    { icon: '⚙',  name: 'Go Controller', sub: 'Reconciler',  color: '#8b5cf6' },
+    { icon: '🧠', name: 'PPO Agent',     sub: 'Flask :5000', color: '#10b981' },
+    { icon: '⚡', name: 'Redis',          sub: 'Coordination', color: '#ec4899' },
+    { icon: '📊', name: 'Dashboard',     sub: 'Angular UI',  color: '#3b82f6' },
+  ];
 
-  constructor(private router: Router) {}
+  // ── NN animation state ────────────────────────────────────────────────────
+  private nnAnimId  = 0;
+  private nnNodes:  { x: number; y: number; active: boolean; col: string }[][] = [];
+  private nnTick    = 0;
+  private nnStarted = false;
+  private resizeObs?: ResizeObserver;
 
-  ngOnInit() {
-    this.initCharts();
-    this.generateNeuralNetworkVisualization();
+  private subs = new Subscription();
+
+  constructor(
+    private svc: MarlsDashboardService,
+    private cdr: ChangeDetectorRef,
+  ) {}
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  ngOnInit(): void {
+    this.subs.add(interval(1000).subscribe(() => { this.now = new Date(); }));
+
+    this.subs.add(this.svc.dashboard$.subscribe((vm: MarlsVM | null) => {
+      this.vm = vm;
+      if (vm) { this.derive(vm); }
+      this.cdr.detectChanges();
+      // ✅ Try to start the NN after data arrives and view has updated
+      if (vm && !this.nnStarted) {
+        setTimeout(() => this.startNN(), 200);
+      }
+    }));
+
+    this.subs.add(this.svc.isConnected$.subscribe((v: boolean) => {
+      this.connected = v; this.cdr.detectChanges();
+    }));
+    this.subs.add(this.svc.isLoading$.subscribe((v: boolean) => {
+      this.loading = v; this.cdr.detectChanges();
+    }));
+    this.subs.add(this.svc.errorMsg$.subscribe((v: string | null) => {
+      this.errorMsg = v ?? ''; this.cdr.detectChanges();
+    }));
   }
 
-  initCharts() {
-    // Reward progression chart
-    this.rewardProgressData = {
-      labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
-      datasets: [
-        {
-          data: [0.5, 0.45, 0.55, 0.4, 0.58, 0.52, 0.65, 0.72, 0.68, 0.62],
-          fill: true,
-          borderColor: '#06b6d4',
-          backgroundColor: 'rgba(6, 182, 212, 0.1)',
-          tension: 0.4,
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4
-        }
-      ]
-    };
-
-    this.rewardProgressOptions = {
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#94a3b8',
-          bodyColor: '#e2e8f0',
-          borderColor: '#334155',
-          borderWidth: 1,
-          padding: 12,
-          displayColors: false
-        }
-      },
-      scales: {
-        x: {
-          display: true,
-          grid: { color: '#1e293b', drawBorder: false },
-          ticks: { color: '#64748b', font: { size: 11 } }
-        },
-        y: {
-          display: true,
-          grid: { color: '#1e293b', drawBorder: false },
-          ticks: { 
-            color: '#64748b',
-            font: { size: 11 },
-            callback: function(value: any) {
-              return value.toFixed(1);
-            }
-          },
-          min: 0,
-          max: 0.8
-        }
-      },
-      interaction: {
-        intersect: false,
-        mode: 'index'
-      }
-    };
-
-    // Epsilon decay chart
-    this.epsilonDecayData = {
-      labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
-      datasets: [
-        {
-          data: [100, 95, 88, 82, 76, 71, 67, 64, 62, 61],
-          fill: true,
-          borderColor: '#f59e0b',
-          backgroundColor: 'rgba(245, 158, 11, 0.2)',
-          tension: 0.1,
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4
-        }
-      ]
-    };
-
-    this.epsilonDecayOptions = {
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#94a3b8',
-          bodyColor: '#e2e8f0',
-          borderColor: '#334155',
-          borderWidth: 1,
-          padding: 12,
-          displayColors: false,
-          callbacks: {
-            label: function(context: any) {
-              return context.parsed.y.toFixed(0) + '%';
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          display: true,
-          grid: { color: '#1e293b', drawBorder: false },
-          ticks: { color: '#64748b', font: { size: 11 } }
-        },
-        y: {
-          display: true,
-          grid: { color: '#1e293b', drawBorder: false },
-          ticks: { 
-            color: '#64748b',
-            font: { size: 11 },
-            callback: function(value: any) {
-              return value + '%';
-            }
-          },
-          min: 0,
-          max: 100
-        }
-      },
-      interaction: {
-        intersect: false,
-        mode: 'index'
-      }
-    };
+  ngAfterViewInit(): void {
+    // ✅ Also try from AfterViewInit — whichever fires last wins via nnStarted flag
+    setTimeout(() => this.startNN(), 200);
   }
 
-  generateNeuralNetworkVisualization() {
-    // Generate node positions for neural network visualization
-    const layers = [8, 12, 16, 12, 8];
-    this.neuralNetworkNodes = [];
+  ngOnDestroy(): void {
+    cancelAnimationFrame(this.nnAnimId);
+    this.resizeObs?.disconnect();
+    this.subs.unsubscribe();
+  }
 
-    layers.forEach((nodeCount, layerIndex) => {
-      for (let i = 0; i < nodeCount; i++) {
-        this.neuralNetworkNodes.push({
-          x: (layerIndex * 20) + 10,
-          y: (i * (80 / nodeCount)) + 10,
-          active: Math.random() > 0.3
+  // ── Template helpers ──────────────────────────────────────────────────────
+  al(a: string): string { return MarlsDashboardService.actionLabel(a); }
+  ac(a: string): string { return MarlsDashboardService.actionClass(a); }
+  sc(s: string): string { return MarlsDashboardService.statusColor(s); }
+
+  // ── Data derivation ───────────────────────────────────────────────────────
+
+  private derive(vm: MarlsVM): void {
+    this.headerStats = [
+      { label: 'Agents',      val: String(vm.totalAgents),                color: '#22d3ee' },
+      { label: 'Decisions',   val: vm.totalDecisions.toLocaleString(),     color: '#10b981' },
+      { label: 'Train Steps', val: vm.totalTrainingSteps.toLocaleString(), color: '#8b5cf6' },
+      { label: 'Algorithm',   val: 'PPO',                                  color: '#f59e0b' },
+    ];
+
+    this.kpiCards = [
+      {
+        label: 'AVG REWARD (100)', val: vm.avgReward.toFixed(3), unit: '',
+        accent: '#22d3ee', delta: '↑ Learning Progress', dClass: 'delta-up',
+      },
+      {
+        label: 'EPSILON (ε)', val: vm.epsilon.toFixed(4), unit: '',
+        accent: '#f59e0b', delta: '↓ Exploration Decay', dClass: 'delta-down',
+      },
+      {
+        label: 'AVG LATENCY P95', val: vm.avgLatencyMs.toFixed(0), unit: 'ms',
+        accent: '#8b5cf6',
+        delta:  vm.avgLatencyMs < 500 ? '↓ Within SLA (500ms)' : '↑ SLA Breach!',
+        dClass: vm.avgLatencyMs < 500 ? 'delta-up' : 'delta-warn',
+      },
+      {
+        label: 'TOTAL REPLICAS', val: String(vm.totalReplicas), unit: '',
+        accent: '#10b981', delta: `across ${vm.totalAgents} services`, dClass: 'delta-dim',
+      },
+      {
+        label: 'CLUSTER CPU', val: vm.avgCpu.toFixed(0), unit: '%',
+        accent: '#3b82f6',
+        delta:  vm.avgCpu < 70 ? '↓ Optimal utilisation' : '↑ High pressure',
+        dClass: vm.avgCpu < 70 ? 'delta-up' : 'delta-warn',
+      },
+    ];
+
+    const latest: TrainingStep | undefined = vm.agents[0]?.trainingHistory?.slice(-1)[0];
+    this.ppoStats = [
+      { label: 'Policy Loss', val: latest?.policy_loss?.toFixed(4) ?? '—', color: '#22d3ee' },
+      { label: 'Value Loss',  val: latest?.value_loss?.toFixed(4)  ?? '—', color: '#8b5cf6' },
+      { label: 'Entropy',     val: latest?.entropy?.toFixed(3)     ?? '—', color: '#10b981' },
+    ];
+
+    this.avgMem = vm.agents.length
+      ? vm.agents.reduce((s: number, a: AgentVM) => s + (a.memGib / 4) * 100, 0) / vm.agents.length
+      : 0;
+
+    const h = vm.rewardHistory;
+    if (h.length >= 2) {
+      const d = ((h[h.length - 1] - h[0]) / (Math.abs(h[0]) || 1)) * 100;
+      this.rewardTrend = `${d >= 0 ? '↑' : '↓'} ${Math.abs(d).toFixed(1)}%`;
+    }
+
+    this.coordItems = [
+      { key: 'Redis',          val: vm.redisAvailable ? 'Connected' : 'Offline', color: vm.redisAvailable ? '#10b981' : '#ef4444' },
+      { key: 'Multi-Agent',    val: vm.redisAvailable ? 'Enabled' : 'Disabled',  color: vm.redisAvailable ? '#10b981' : '#64748b' },
+      { key: 'Total Agents',   val: String(vm.totalAgents),                       color: '#22d3ee' },
+      { key: 'Total Replicas', val: String(vm.totalReplicas),                     color: '#8b5cf6' },
+      { key: 'Avail Capacity', val: String(vm.availableCapacity),                 color: '#10b981' },
+      { key: 'Avg Confidence', val: (vm.avgConfidence * 100).toFixed(1) + '%',    color: '#f59e0b' },
+      { key: 'Avg Latency',    val: vm.avgLatencyMs.toFixed(0) + 'ms',            color: vm.avgLatencyMs < 500 ? '#10b981' : '#ef4444' },
+    ];
+
+    const rows: DecisionRow[] = [];
+    vm.agents.forEach((a: AgentVM) => {
+      (a.decisionHistory ?? []).slice(0, 5).forEach((d: AgentDecision, idx: number) => {
+        rows.push({
+          action: d.action, service: a.serviceName, namespace: a.namespace,
+          replicas: d.replicas, reward: d.reward, confidence: d.confidence,
+          latencyMs: a.latencyMs, trainingSteps: d.training_steps,
+          ts: new Date(d.timestamp), isNew: idx === 0,
         });
+      });
+    });
+    rows.sort((a: DecisionRow, b: DecisionRow) => b.ts.getTime() - a.ts.getTime());
+    this.allDecisions = rows.slice(0, 30);
+
+    // Redraw donuts + charts after layout settles
+    setTimeout(() => {
+      this.drawDonut(this.cpuRef, Math.round(vm.avgCpu),   '#22d3ee');
+      this.drawDonut(this.memRef, Math.round(this.avgMem), '#10b981');
+      this.drawLineChart(this.rewRef, this.rewWrap, vm.rewardHistory,  '#22d3ee');
+      this.drawLineChart(this.epsRef, this.epsWrap, vm.epsilonHistory, '#f59e0b', 0, 1);
+    }, 50);
+  }
+
+  // ── Neural network canvas ─────────────────────────────────────────────────
+
+  private startNN(): void {
+    if (this.nnStarted) return;
+
+    const wrap = this.nnWrap?.nativeElement;
+    const c    = this.nnRef?.nativeElement;
+    if (!wrap || !c) return;
+
+    // ✅ Read width from the wrapper div — it always has a real layout width
+    const W = wrap.offsetWidth || 400;
+    if (W < 10) {
+      // Still not laid out — retry once more
+      setTimeout(() => { this.nnStarted = false; this.startNN(); }, 200);
+      return;
+    }
+
+    this.nnStarted = true;
+    const H   = 200;
+    const dpr = window.devicePixelRatio || 1;
+
+    c.width  = W * dpr;
+    c.height = H * dpr;
+    c.style.width  = W + 'px';
+    c.style.height = H + 'px';
+
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    // ✅ ResizeObserver — redraws when the panel resizes (e.g. sidebar collapse)
+    this.resizeObs = new ResizeObserver(() => {
+      const newW = wrap.offsetWidth || 400;
+      if (Math.abs(newW - W) > 10) {
+        this.nnStarted = false;
+        cancelAnimationFrame(this.nnAnimId);
+        setTimeout(() => this.startNN(), 50);
       }
     });
+    this.resizeObs.observe(wrap);
+
+    const layerDefs: [number, string][] = [
+      [4, '34,211,238'],
+      [6, '34,211,238'],
+      [8, '59,130,246'],
+      [6, '139,92,246'],
+      [3, '139,92,246'],
+    ];
+
+    this.nnNodes = layerDefs.map(([n, col]: [number, string], li: number) =>
+      Array.from({ length: n }, (_: unknown, i: number) => ({
+        x: (li / (layerDefs.length - 1)) * (W - 60) + 30,
+        y: ((i + 0.5) / n) * H,
+        active: Math.random() > 0.4,
+        col,
+      }))
+    );
+
+    const draw = (): void => {
+      ctx.clearRect(0, 0, W, H);
+      this.nnTick++;
+      const t = this.nnTick;
+
+      // Randomly flip node activations
+      if (t % 12 === 0) {
+        this.nnNodes.forEach(layer =>
+          layer.forEach(n => { if (Math.random() < 0.2) n.active = !n.active; })
+        );
+      }
+
+      // ── Connections ────────────────────────────────────────────────────
+      for (let li = 0; li < this.nnNodes.length - 1; li++) {
+        this.nnNodes[li].forEach(a => {
+          this.nnNodes[li + 1].forEach(b => {
+            const on    = a.active && b.active;
+            const pulse = Math.sin(t * 0.05 + a.x * 0.01 + b.y * 0.008) * 0.5 + 0.5;
+            const alpha = on ? 0.08 + pulse * 0.14 : 0.025;
+            const g = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+            g.addColorStop(0, `rgba(34,211,238,${alpha})`);
+            g.addColorStop(1, `rgba(139,92,246,${alpha})`);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = g;
+            ctx.lineWidth   = on ? 0.8 : 0.3;
+            ctx.stroke();
+          });
+        });
+      }
+
+      // ── Nodes ──────────────────────────────────────────────────────────
+      this.nnNodes.forEach(layer => {
+        layer.forEach(n => {
+          const pulse = Math.sin(t * 0.05 + n.x * 0.02) * 0.5 + 0.5;
+          const r     = n.active ? 4 + pulse * 1.5 : 3;
+
+          // Outer glow
+          if (n.active) {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, r + 7, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${n.col},0.07)`;
+            ctx.fill();
+          }
+
+          // Node fill
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+          ctx.fillStyle    = n.active ? `rgba(${n.col},0.9)` : `rgba(${n.col},0.2)`;
+          ctx.shadowColor  = n.active ? `rgba(${n.col},.8)` : 'transparent';
+          ctx.shadowBlur   = n.active ? 8 : 0;
+          ctx.fill();
+          ctx.shadowBlur   = 0;
+        });
+      });
+
+      // ── Layer labels ───────────────────────────────────────────────────
+      const labels = ['Input', 'Hidden', 'Hidden', 'Policy', 'Actions'];
+      labels.forEach((lbl: string, li: number) => {
+        ctx.fillStyle = 'rgba(100,116,139,0.7)';
+        ctx.font      = `9px 'JetBrains Mono', monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(lbl, this.nnNodes[li][0].x, H - 4);
+      });
+
+      this.nnAnimId = requestAnimationFrame(draw);
+    };
+
+    draw();
   }
 
-  getActionIcon(action: string): string {
-    switch (action) {
-      case 'scale-up':
-        return 'pi-arrow-up';
-      case 'scale-down':
-        return 'pi-arrow-down';
-      case 'no-action':
-        return 'pi-minus';
-      default:
-        return 'pi-circle';
+  // ── Donut chart ────────────────────────────────────────────────────────────
+
+  private drawDonut(
+    ref: ElementRef<HTMLCanvasElement> | undefined,
+    pct: number,
+    color: string,
+  ): void {
+    const c = ref?.nativeElement;
+    if (!c) return;
+
+    const dpr  = window.devicePixelRatio || 1;
+    const SIZE = 110;
+    c.width  = SIZE * dpr;
+    c.height = SIZE * dpr;
+    c.style.width  = SIZE + 'px';
+    c.style.height = SIZE + 'px';
+
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, SIZE, SIZE);
+
+    const cx = SIZE / 2, cy = SIZE / 2, r = 42;
+
+    // Background track
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth   = 8;
+    ctx.stroke();
+
+    // Value arc
+    if (pct > 0) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (pct / 100) * Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 8;
+      ctx.lineCap     = 'round';
+      ctx.shadowColor = color + '80';
+      ctx.shadowBlur  = 12;
+      ctx.stroke();
+      ctx.shadowBlur  = 0;
     }
   }
 
-  getActionClass(action: string): string {
-    switch (action) {
-      case 'scale-up':
-        return 'action-scale-up';
-      case 'scale-down':
-        return 'action-scale-down';
-      case 'no-action':
-        return 'action-no-action';
-      default:
-        return '';
-    }
-  }
+  // ── Line chart ─────────────────────────────────────────────────────────────
 
-  getStatusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' {
-    switch (status) {
-      case 'healthy':
-        return 'success';
-      case 'scaling':
-        return 'info';
-      case 'warning':
-        return 'warn';
-      default:
-        return 'danger';
-    }
-  }
+  private drawLineChart(
+    ref:  ElementRef<HTMLCanvasElement> | undefined,
+    wrap: ElementRef<HTMLDivElement>    | undefined,
+    data: number[],
+    color: string,
+    yMin?: number,
+    yMax?: number,
+  ): void {
+    const c = ref?.nativeElement;
+    if (!c || !data || data.length < 2) return;
 
-  formatReward(reward: number): string {
-    return (reward >= 0 ? '+' : '') + reward.toFixed(3);
+    // ✅ Read width from wrapper, not canvas
+    const W   = wrap?.nativeElement?.offsetWidth || c.offsetWidth || 300;
+    const H   = 130;
+    const dpr = window.devicePixelRatio || 1;
+
+    c.width  = W * dpr;
+    c.height = H * dpr;
+    c.style.width  = W + 'px';
+    c.style.height = H + 'px';
+
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    const pad = { t: 10, b: 28, l: 40, r: 12 };
+    const cW  = W - pad.l - pad.r;
+    const cH  = H - pad.t - pad.b;
+    const min = yMin !== undefined ? yMin : Math.min(...data) - 0.05;
+    const max = yMax !== undefined ? yMax : Math.max(...data) + 0.05;
+    const rng = (max - min) || 1;
+
+    // Grid lines + Y axis labels
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + (i / 4) * cH;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(W - pad.r, y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth   = 1;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(100,116,139,0.7)';
+      ctx.font      = `9px 'JetBrains Mono', monospace`;
+      ctx.textAlign = 'right';
+      ctx.fillText((max - (i / 4) * (max - min)).toFixed(2), pad.l - 4, y + 3);
+    }
+
+    const pts = data.map((v: number, i: number) => ({
+      x: pad.l + (i / (data.length - 1)) * cW,
+      y: pad.t + (1 - (v - min) / rng) * cH,
+    }));
+
+    // Gradient fill under the line
+    const gr = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+    gr.addColorStop(0, color + '38');
+    gr.addColorStop(1, color + '00');
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, H - pad.b);
+    pts.forEach((p: { x: number; y: number }) => ctx.lineTo(p.x, p.y));
+    ctx.lineTo(pts[pts.length - 1].x, H - pad.b);
+    ctx.closePath();
+    ctx.fillStyle = gr;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    pts.forEach((p: { x: number; y: number }, i: number) =>
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)
+    );
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 2;
+    ctx.lineJoin    = 'round';
+    ctx.stroke();
+
+    // Last point dot
+    const last = pts[pts.length - 1];
+    ctx.beginPath();
+    ctx.arc(last.x, last.y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle   = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur  = 10;
+    ctx.fill();
+    ctx.shadowBlur  = 0;
+
+    // X labels
+    ctx.fillStyle = 'rgba(100,116,139,0.6)';
+    ctx.font      = `9px 'JetBrains Mono', monospace`;
+    ctx.textAlign = 'center';
+    [0, Math.floor(data.length / 2), data.length - 1].forEach((i: number) =>
+      ctx.fillText(`T-${data.length - 1 - i}`, pts[i].x, H - 5)
+    );
   }
 }
-
-
-// import { Component, OnInit } from '@angular/core';
-// import { CommonModule } from '@angular/common';
-// import { FormsModule } from '@angular/forms';
-// import { ButtonModule } from 'primeng/button';
-// import { CalendarModule } from 'primeng/calendar';
-// import { ChartModule } from 'primeng/chart';
-// import { SelectButtonModule } from 'primeng/selectbutton';
-// import { TableModule } from 'primeng/table';
-// import { Router } from '@angular/router';
-// import { DashboardService } from '../../../services/Dashboard.service';
-// import { DashboardDto } from '../../../dto/Dashboard.dto';
-
-// @Component({
-//   selector: 'app-dashboard',
-//   standalone: true,
-//   imports: [
-//     CommonModule,
-//     FormsModule,
-//     ButtonModule,
-//     CalendarModule,
-//     ChartModule,
-//     SelectButtonModule,
-//     TableModule,
-//   ],
-//   providers: [DashboardService],
-//   templateUrl: './dashboard.component.html',
-//   styleUrl: './dashboard.component.scss',
-// })
-// export class DashboardComponent implements OnInit {
-//   selectedTime: string = 'Monthly';
-//   timeOptions: string[] = ['Weekly', 'Monthly', 'Yearly'];
-//   dateRange: Date[] = [];
-//   currencySymbol: string = 'LKR';
-//   currencyFormat: string = 'en-LK';
-
-//   salesData = { annual: 0, daily: 0 };
-//   profitData = { annual: 0, daily: 0 };
-//   stockData = { items: 0, value: 0 };
-//   wastageData = { items: 0, cost: 0 };
-
-//   chartData: any;
-//   chartOptions: any;
-//   pieData: any;
-//   pieOptions: any;
-
-//   transactions: {
-//     id: string;
-//     product: string;
-//     amount: number;
-//     status: string;
-//   }[] = [];
-//   dashboardData: DashboardDto | null = null;
-
-//   constructor(
-//     private router: Router,
-//     private dashboardService: DashboardService
-//   ) {}
-
-//   ngOnInit() {
-//     this.getCurrencySettings();
-//     this.loadDashboardData();
-//     // this.loadRecentTransactions();
-//   }
-
-//   getCurrencySettings(): void {
-//     try {
-//       const storedCurrency = localStorage.getItem('selectedCurrency');
-//       this.currencySymbol = storedCurrency || 'LKR';
-
-//       const storedFormat = localStorage.getItem('currencyFormat');
-//       this.currencyFormat = storedFormat || 'en-LK';
-//     } catch {
-//       this.currencySymbol = 'LKR';
-//       this.currencyFormat = 'en-LK';
-//     }
-//   }
-
-//   // loadRecentTransactions(): void {
-//   //   const branchId = sessionStorage.getItem('BranchId') || '';
-//   //   const params = { page: 1, size: 5, branchId: branchId };
-
-//   //   this.dashboardService.findAllInventoryHistoryPaginated(params).subscribe({
-//   //     next: (response) => {
-//   //       if (response.body) {
-//   //         this.mapTransactions(response.body.inventoryHistorys);
-//   //       } else {
-//   //         this.transactions = [];
-//   //       }
-//   //     },
-//   //     error: () => {
-//   //       this.transactions = [];
-//   //     },
-//   //   });
-//   // }
-
-//   // mapTransactions(inventoryHistorys: InventoryHistoryDto[]): void {
-//   //   this.transactions = inventoryHistorys.map((history) => {
-//   //     let totalAmount = 0;
-//   //     if (history.Items && Array.isArray(history.Items)) {
-//   //       totalAmount = history.Items.reduce((sum, item) => {
-//   //         return sum + (item.UnitPrice || 0) * (item.Quantity || 0);
-//   //       }, 0);
-//   //     }
-
-//   //     let productDisplay = 'Unknown';
-//   //     if (history.Items && history.Items.length > 0) {
-//   //       productDisplay = history.Items[0].ProductId || 'Unknown';
-//   //       if (history.Items.length > 1) {
-//   //         productDisplay += ` + ${history.Items.length - 1} more`;
-//   //       }
-//   //     }
-
-//   //     let status = 'Completed';
-//   //     switch (history.Action) {
-//   //       case 'INVOICE':
-//   //         status = 'Completed';
-//   //         break;
-//   //       case 'GRN':
-//   //         status = 'Received';
-//   //         break;
-//   //       case 'RECEIVING-ITEMS':
-//   //         status = 'Processing';
-//   //         break;
-//   //       default:
-//   //         status = 'Pending';
-//   //     }
-
-//   //     return {
-//   //       id: history.InventoryHistoryId || '',
-//   //       product: productDisplay,
-//   //       amount: totalAmount,
-//   //       status: status,
-//   //     };
-//   //   });
-//   // }
-
-//   loadDashboardData(): void {
-//     const branchId = sessionStorage.getItem('BranchId') || '';
-//     this.dashboardService.getDashboardData(branchId).subscribe({
-//       next: (response) => {
-//         if (response.body) {
-//           this.dashboardData = response.body;
-//           this.updateDashboardDisplay();
-//         } else {
-//           this.resetDashboardToZero();
-//         }
-//       },
-//       error: () => {
-//         this.resetDashboardToZero();
-//       },
-//     });
-//   }
-
-//   resetDashboardToZero(): void {
-//     this.salesData = { annual: 0, daily: 0 };
-//     this.profitData = { annual: 0, daily: 0 };
-//     this.stockData = { items: 0, value: 0 };
-//     this.wastageData = { items: 0, cost: 0 };
-//     this.transactions = [];
-//     this.initChartData();
-//   }
-
-//   updateDashboardDisplay(): void {
-//     if (this.dashboardData) {
-//       this.salesData = {
-//         annual: this.dashboardData.AnnualSales || 0,
-//         daily: this.dashboardData.DailySales || 0,
-//       };
-
-//       this.profitData = {
-//         annual: this.dashboardData.AnnualProfit || 0,
-//         daily: this.dashboardData.DailySales
-//           ? this.dashboardData.DailySales * 0.3
-//           : 0,
-//       };
-
-//       this.stockData = {
-//         items: this.dashboardData.StockItems || 0,
-//         value: this.dashboardData.StockItems
-//           ? this.dashboardData.StockItems * 3000
-//           : 0,
-//       };
-
-//       this.wastageData = {
-//         items: this.dashboardData.Wastage || 0,
-//         cost: this.dashboardData.Wastage ? this.dashboardData.Wastage * 600 : 0,
-//       };
-
-//       this.initChartData();
-//     }
-//   }
-
-//   initChartData() {
-//     const chartLabels = this.getChartLabels();
-//     const chartValues = this.getChartValues();
-
-//     this.chartData = {
-//       labels: chartLabels,
-//       datasets: [
-//         {
-//           label: 'Sales 2024',
-//           data: chartValues,
-//           fill: true,
-//           borderColor: '#3B82F6',
-//           backgroundColor: 'rgba(59, 130, 246, 0.1)',
-//           tension: 0.4,
-//         },
-//       ],
-//     };
-
-//     this.chartOptions = {
-//       plugins: {
-//         legend: {
-//           display: false,
-//         },
-//         tooltip: {
-//           callbacks: {
-//             label: (context: any) => {
-//               return `${this.currencySymbol} ${this.formatCurrency(
-//                 context.raw
-//               )}`;
-//             },
-//           },
-//         },
-//       },
-//       scales: {
-//         y: {
-//           ticks: {
-//             callback: (value: number) => {
-//               return `${this.currencySymbol} ${this.formatCurrency(value)}`;
-//             },
-//           },
-//         },
-//       },
-//     };
-
-//     this.pieData = {
-//       labels: [
-//         'Electronics',
-//         'Clothing',
-//         'Food & Beverages',
-//         'Books',
-//         'Others',
-//       ],
-//       datasets: [
-//         {
-//           data: this.dashboardData ? [30, 25, 20, 15, 10] : [0, 0, 0, 0, 0],
-//           backgroundColor: [
-//             '#3B82F6',
-//             '#EC4899',
-//             '#14B8A6',
-//             '#F59E0B',
-//             '#6B7280',
-//           ],
-//         },
-//       ],
-//     };
-
-//     this.pieOptions = {
-//       plugins: {
-//         legend: {
-//           position: 'bottom',
-//         },
-//       },
-//     };
-//   }
-
-//   getChartLabels(): string[] {
-//     switch (this.selectedTime) {
-//       case 'Weekly':
-//         return ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-//       case 'Monthly':
-//         return [
-//           'January',
-//           'February',
-//           'March',
-//           'April',
-//           'May',
-//           'June',
-//           'July',
-//           'August',
-//           'September',
-//           'October',
-//           'November',
-//           'December',
-//         ];
-//       case 'Yearly':
-//         return ['2020', '2021', '2022', '2023', '2024'];
-//       default:
-//         return [
-//           'January',
-//           'February',
-//           'March',
-//           'April',
-//           'May',
-//           'June',
-//           'July',
-//           'August',
-//           'September',
-//           'October',
-//           'November',
-//           'December',
-//         ];
-//     }
-//   }
-
-//   getChartValues(): number[] {
-//     if (!this.dashboardData) {
-//       switch (this.selectedTime) {
-//         case 'Weekly':
-//           return [0, 0, 0, 0];
-//         case 'Monthly':
-//           return Array(12).fill(0);
-//         case 'Yearly':
-//           return [0, 0, 0, 0, 0];
-//         default:
-//           return Array(12).fill(0);
-//       }
-//     } else {
-//       switch (this.selectedTime) {
-//         case 'Weekly':
-//           return this.dashboardData.WeeklySales || [0, 0, 0, 0];
-//         case 'Monthly':
-//           return this.dashboardData.MonthlySales || Array(12).fill(0);
-//         case 'Yearly':
-//           const monthlyData =
-//             this.dashboardData.MonthlySales || Array(12).fill(0);
-//           const yearlyTotal = monthlyData.reduce((sum, val) => sum + val, 0);
-//           return yearlyTotal > 0
-//             ? [
-//                 yearlyTotal * 0.6,
-//                 yearlyTotal * 0.7,
-//                 yearlyTotal * 0.8,
-//                 yearlyTotal * 0.9,
-//                 yearlyTotal,
-//               ]
-//             : [0, 0, 0, 0, 0];
-//         default:
-//           return this.dashboardData.MonthlySales || Array(12).fill(0);
-//       }
-//     }
-//   }
-
-//   formatCurrency(value: number): string {
-//     return value.toLocaleString(this.currencyFormat);
-//   }
-
-//   getStatusClass(status: string): string {
-//     const baseClass = 'px-3 py-1 rounded-full text-sm font-medium';
-//     switch (status.toLowerCase()) {
-//       case 'completed':
-//         return `${baseClass} bg-green-100 text-green-800`;
-//       case 'pending':
-//         return `${baseClass} bg-yellow-100 text-yellow-800`;
-//       case 'cancelled':
-//         return `${baseClass} bg-red-100 text-red-800`;
-//       default:
-//         return baseClass;
-//     }
-//   }
-
-//   navigateToReports() {
-//     this.router.navigate(['/report']);
-//   }
-
-//   navigateToTransaction() {
-//     this.router.navigate(['/inventoryhistory']);
-//   }
-
-//   navigateToProduct() {
-//     this.router.navigate(['/product']);
-//   }
-
-//   changeSelect() {
-//     this.initChartData();
-//   }
-// }

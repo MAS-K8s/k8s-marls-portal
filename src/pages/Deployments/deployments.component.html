@@ -1,0 +1,216 @@
+<div class="deployments-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1 class="page-title">Deployments</h1>
+      <p class="page-subtitle">Monitor and analyze deployment scaling history</p>
+    </div>
+  </div>
+
+  <!-- Deployment Cards Grid -->
+  <div class="deployments-grid">
+    <div class="deployment-card" 
+         *ngFor="let deployment of deployments"
+         (click)="selectDeployment(deployment)"
+         [class.selected]="selectedDeployment?.id === deployment.id">
+      <div class="card-header">
+        <div class="card-icon">
+          <i class="pi pi-server"></i>
+        </div>
+        <p-tag 
+          [value]="getStatusLabel(deployment.status)" 
+          [severity]="getStatusSeverity(deployment.status)">
+        </p-tag>
+      </div>
+
+      <div class="card-body">
+        <h3 class="deployment-name">{{ deployment.name }}</h3>
+        <p class="deployment-namespace">{{ deployment.namespace }}</p>
+
+        <div class="metrics-row">
+          <div class="metric-item">
+            <span class="metric-label">Replicas</span>
+            <span class="metric-value replica-value">{{ deployment.replicas }}</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Avg Reward</span>
+            <span class="metric-value reward-value" [ngClass]="getRewardClass(deployment.avgReward)">
+              {{ formatReward(deployment.avgReward) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="scaling-stats">
+          <div class="stat-badge scale-up">
+            <i class="pi pi-arrow-up"></i>
+            <span>{{ deployment.scaleUpCount }}</span>
+          </div>
+          <div class="stat-badge scale-down">
+            <i class="pi pi-arrow-down"></i>
+            <span>{{ deployment.scaleDownCount }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed View -->
+  <div class="details-section" *ngIf="selectedDeployment">
+    <div class="details-panel">
+      <!-- Metrics Overview -->
+      <div class="metrics-overview">
+        <div class="metric-card">
+          <div class="metric-card-header">
+            <i class="pi pi-microchip metric-card-icon" style="color: #06b6d4;"></i>
+            <span class="metric-card-label">CPU</span>
+          </div>
+          <div class="metric-card-value" [ngClass]="getCpuClass(selectedDeployment.cpu)">
+            {{ selectedDeployment.cpu.toFixed(1) }}%
+          </div>
+          <p-progressBar 
+            [value]="selectedDeployment.cpu" 
+            [showValue]="false"
+            styleClass="custom-progressbar cpu-progress">
+          </p-progressBar>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-card-header">
+            <i class="pi pi-database metric-card-icon" style="color: #10b981;"></i>
+            <span class="metric-card-label">Memory</span>
+          </div>
+          <div class="metric-card-value" [ngClass]="getMemoryClass(selectedDeployment.memory)">
+            {{ selectedDeployment.memory.toFixed(1) }}%
+          </div>
+          <p-progressBar 
+            [value]="selectedDeployment.memory" 
+            [showValue]="false"
+            styleClass="custom-progressbar memory-progress">
+          </p-progressBar>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-card-header">
+            <i class="pi pi-clock metric-card-icon" style="color: #f59e0b;"></i>
+            <span class="metric-card-label">Latency</span>
+          </div>
+          <div class="metric-card-value">
+            {{ selectedDeployment.latency.toFixed(0) }}<span class="metric-unit">ms</span>
+          </div>
+          <div class="metric-subtext">
+            Error Rate: {{ selectedDeployment.errorRate }}%
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-card-header">
+            <i class="pi pi-chart-line metric-card-icon" style="color: #8b5cf6;"></i>
+            <span class="metric-card-label">Requests</span>
+          </div>
+          <div class="metric-card-value">
+            {{ selectedDeployment.requestsPerSecond }}<span class="metric-unit">/s</span>
+          </div>
+          <div class="metric-subtext">
+            Uptime: {{ selectedDeployment.uptime }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Replica Configuration -->
+      <div class="config-section">
+        <h3 class="section-title">Replica Configuration</h3>
+        <div class="config-grid">
+          <div class="config-item">
+            <span class="config-label">Current</span>
+            <span class="config-value highlight-cyan">{{ selectedDeployment.replicas }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Target</span>
+            <span class="config-value highlight-green">{{ selectedDeployment.targetReplicas }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Min</span>
+            <span class="config-value">{{ selectedDeployment.minReplicas }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Max</span>
+            <span class="config-value">{{ selectedDeployment.maxReplicas }}</span>
+          </div>
+        </div>
+        
+        <div class="replica-range">
+          <div class="range-bar">
+            <div class="range-fill" 
+                 [style.left.%]="(selectedDeployment.minReplicas / selectedDeployment.maxReplicas) * 100"
+                 [style.width.%]="((selectedDeployment.maxReplicas - selectedDeployment.minReplicas) / selectedDeployment.maxReplicas) * 100">
+            </div>
+            <div class="range-marker current-marker" 
+                 [style.left.%]="(selectedDeployment.replicas / selectedDeployment.maxReplicas) * 100">
+              <div class="marker-dot"></div>
+              <span class="marker-label">Current</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <p-tabView styleClass="custom-tabview">
+        <p-tabPanel header="Replica History">
+          <div class="chart-container">
+            <p-chart 
+              type="line" 
+              [data]="replicaChartData" 
+              [options]="replicaChartOptions"
+              height="300px">
+            </p-chart>
+          </div>
+        </p-tabPanel>
+        
+        <p-tabPanel header="Reward History">
+          <div class="chart-container">
+            <p-chart 
+              type="line" 
+              [data]="rewardChartData" 
+              [options]="rewardChartOptions"
+              height="300px">
+            </p-chart>
+          </div>
+        </p-tabPanel>
+        
+        <p-tabPanel header="Resource Metrics">
+          <div class="chart-container">
+            <p-chart 
+              type="line" 
+              [data]="metricsChartData" 
+              [options]="metricsChartOptions"
+              height="300px">
+            </p-chart>
+          </div>
+        </p-tabPanel>
+      </p-tabView>
+
+      <!-- Additional Info -->
+      <div class="info-footer">
+        <div class="info-item">
+          <i class="pi pi-clock"></i>
+          <span>Last scaled: <strong>{{ selectedDeployment.lastScaled }}</strong></span>
+        </div>
+        <div class="info-item">
+          <i class="pi pi-calendar"></i>
+          <span>Uptime: <strong>{{ selectedDeployment.uptime }}</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!selectedDeployment">
+    <div class="empty-state-content">
+      <div class="empty-state-icon">
+        <i class="pi pi-server"></i>
+        <i class="pi pi-server"></i>
+      </div>
+      <p class="empty-state-text">Select a deployment to view detailed metrics</p>
+    </div>
+  </div>
+</div>

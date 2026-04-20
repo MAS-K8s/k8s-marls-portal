@@ -2,10 +2,8 @@ export const environment = {
   production: false,
   // serverUrl: ' http://127.0.0.1:8886/User-Mgt/api',
   serverUrl: ' https://user-mgt-service.dev-sachin.co.uk/User-Mgt/api',
-  SupplierUrl: 'https://imo-mgt-be.onrender.com/Suppliers/api',
   ReportUrl: 'http://127.0.0.1:8886/Reports/api',
    OrganizeUrl: 'http://127.0.0.1:8888/Organizations/api',
- InventoryUrl: 'http://127.0.0.1:8882/Inventory/api',
  
   LogoLight: '',
   LogoDark: 'https://i.postimg.cc/9f5qsBh6/images.jpg',

@@ -292,16 +292,16 @@ export class MainsectionComponent implements OnInit {
         { icon: 'pi pi-th-large', title: 'Dashboard', routerLink: '', id: '' },
 
         {
-          icon: 'pi pi-shopping-cart', // 🛒 Merchant Orders
+          icon: 'pi pi-sitemap', 
           title: 'Agent Decisions',
           routerLink: '/agent-decisions',
           id: 'DTO5226',
         },
 
         {
-          icon: 'pi pi-box', // 📦 Reseller Orders
+          icon: 'pi pi-box', // 
           title: 'Training Metrics',
-          routerLink: '/reseller-orders',
+          routerLink: '/training-metrics',
           id: 'DTO5225',
         },
 
@@ -313,14 +313,14 @@ export class MainsectionComponent implements OnInit {
         },
 
         {
-          icon: 'pi pi-users', // 👥 Customer Orders
+          icon: 'pi pi-server', // 👥 Customer Orders
           title: 'Deployment',
-          routerLink: '/customer-orders',
+          routerLink: '/deployment',
           id: 'DTO5224',
         },
 
         {
-          icon: 'pi pi-send', // 📩 Order to Merchant
+          icon: 'pi pi-gauge', // 📩 Order to Merchant
           title: 'Performance',
           routerLink: '/order-to-merchant',
           id: 'DTO5227',
@@ -340,17 +340,23 @@ export class MainsectionComponent implements OnInit {
         //   id: 'DTO5230',
         // },
 
-        // {
-        //   icon: 'pi pi-user', // 👤 Customers
-        //   title: 'Customers',
-        //   routerLink: '/customers',
-        //   id: 'DTO5223',
-        // },
+        {
+          icon: 'pi pi-user', // 👤 Customers
+          title: 'Pod-Auto-Scaling',
+          routerLink: '/pod-auto-scaling',
+          id: 'DTO5223',
+        },
 
         {
           icon: 'pi pi-file-excel',
           title: 'Reports',
           routerLink: '/report',
+          // id: 'DTO5210',
+        },
+         {
+          icon: 'pi pi-file-excel',
+          title: 'Grafana',
+          routerLink: '/grafana',
           // id: 'DTO5210',
         },
         {
