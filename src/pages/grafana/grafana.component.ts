@@ -35,7 +35,7 @@ interface PromQuery {
 export class GrafanaComponent implements OnInit, OnDestroy {
 
   // ── Config ─────────────────────────────────────────────────────────────
-  readonly grafanaBase = 'http://136.118.53.99:30810';
+  readonly grafanaBase = 'https://grafana.dev-sachin.co.uk';
 
   // Set to true once you've enabled allow_embedding=true in grafana.ini
   embeddingEnabled = false;
@@ -61,7 +61,7 @@ export class GrafanaComponent implements OnInit, OnDestroy {
 
   // ── Status cards ───────────────────────────────────────────────────────
   statusCards = [
-    { icon: '📡', label: 'Grafana URL',       value: '136.118.53.99:30810', color: '#22d3ee' },
+    { icon: '📡', label: 'Grafana URL',       value: 'grafana.dev-sachin.co.uk', color: '#22d3ee' },
     { icon: '🗄', label: 'Datasource',         value: 'Prometheus',          color: '#f59e0b' },
     { icon: '🔄', label: 'Scrape Interval',    value: '15s',                 color: '#10b981' },
     { icon: '⏱', label: 'Retention',           value: '15d (default)',       color: '#8b5cf6' },
