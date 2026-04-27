@@ -1,229 +1,363 @@
-<div class="agent-decisions-container">
-  <!-- Header -->
-  <div class="page-header">
-    <div class="header-content">
-      <h1 class="page-title">Agent Decisions</h1>
-      <p class="page-subtitle">Detailed log of all scaling actions</p>
-    </div>
-    <button pButton 
-            label="Export CSV" 
-            icon="pi pi-download" 
-            class="export-btn"
-            (click)="exportCSV()">
-    </button>
-  </div>
+<div class="ad-root" translate="no">
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow--a"></div>
+  <div class="bg-glow bg-glow--b"></div>
 
-  <!-- Search and Filter Bar -->
-  <div class="filter-bar">
-    <div class="search-wrapper">
-      <i class="pi pi-search search-icon"></i>
-      <input 
-        type="text" 
-        pInputText 
-        [(ngModel)]="searchText"
-        (ngModelChange)="onSearchChange()"
-        placeholder="Search deployments..."
-        class="search-input"
-      />
-    </div>
-    
-    <div class="filter-dropdown">
-      <i class="pi pi-filter filter-icon"></i>
-      <p-dropdown 
-        [(ngModel)]="selectedActionFilter"
-        [options]="actionFilters"
-        optionLabel="label"
-        optionValue="value"
-        (onChange)="onActionFilterChange()"
-        placeholder="All Actions"
-        [style]="{'width': '100%'}"
-      ></p-dropdown>
-    </div>
-  </div>
+  <div class="ad-content">
 
-  <!-- Main Content Grid -->
-  <div class="content-grid">
-    <!-- Decision Log Table -->
-    <div class="panel decision-log-panel">
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <h2 class="panel-title">Decision Log</h2>
-          <span class="decision-count">{{ totalDecisions }} decisions</span>
+    <!-- ══ HEADER ═══════════════════════════════════════════════════════════ -->
+    <header class="ad-header">
+      <div class="ad-header__left">
+        <div class="ad-header__logo">&#x26A1;</div>
+        <div>
+          <h1 class="ad-header__title">Agent <span>Decisions</span></h1>
+          <p class="ad-header__sub">
+            Real-time PPO scaling decisions &middot; Go Controller &rarr; Flask Agent &middot;
+            Last sync: {{ (state$ | async)?.lastSyncAt | date:'HH:mm:ss' }}
+          </p>
         </div>
       </div>
-      <div class="panel-content">
-        <p-table 
-          [value]="filteredDecisions" 
-          [scrollable]="true" 
-          scrollHeight="calc(100vh - 340px)"
-          selectionMode="single"
-          [(selection)]="selectedDecision"
-          (onRowSelect)="selectDecision($event.data)"
-          dataKey="id"
-        >
-          <ng-template pTemplate="header">
-            <tr>
-              <th style="width: 60px;"></th>
-              <th>Deployment</th>
-              <th>Action</th>
-              <th>Replicas</th>
-              <th>Reward</th>
-              <th>ε</th>
-              <th>Time</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-decision>
-            <tr [pSelectableRow]="decision" [class.selected-row]="selectedDecision?.id === decision.id">
-              <td>
-                <div class="deployment-icon">
-                  <i class="pi pi-box"></i>
-                </div>
-              </td>
-              <td>
-                <span class="deployment-name">{{ decision.deployment }}</span>
-              </td>
-              <td>
-                <div class="action-badge" [ngClass]="getActionClass(decision.action)">
-                  <i class="pi" [ngClass]="getActionIcon(decision.action)"></i>
-                  <span>{{ getActionLabel(decision.action) }}</span>
-                </div>
-              </td>
-              <td>
-                <span class="replica-change">{{ getReplicaChange(decision) }}</span>
-              </td>
-              <td>
-                <span class="reward-value">{{ formatReward(decision.reward) }}</span>
-              </td>
-              <td>
-                <span class="epsilon-value">{{ formatEpsilon(decision.epsilon) }}</span>
-              </td>
-              <td>
-                <span class="timestamp">{{ decision.timestamp }}</span>
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
-    </div>
 
-    <!-- Decision Details Panel -->
-    <div class="panel decision-details-panel" *ngIf="selectedDecision">
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <h2 class="panel-title">Decision Details</h2>
-          <span class="deployment-name-header">{{ selectedDecision.deployment }}</span>
-        </div>
-      </div>
-      
-      <div class="panel-content details-content">
-        <!-- State Vector -->
-        <div class="details-section">
-          <h3 class="section-title">STATE VECTOR</h3>
-          <div class="state-grid">
-            <div class="state-item">
-              <span class="state-label">CPU</span>
-              <span class="state-value">{{ selectedDecision.stateVector.cpu }}%</span>
-            </div>
-            <div class="state-item">
-              <span class="state-label">Memory</span>
-              <span class="state-value">{{ selectedDecision.stateVector.memory }}%</span>
-            </div>
-            <div class="state-item">
-              <span class="state-label">Latency</span>
-              <span class="state-value">{{ selectedDecision.stateVector.latency }}ms</span>
-            </div>
-            <div class="state-item">
-              <span class="state-label">Error Rate</span>
-              <span class="state-value">{{ selectedDecision.stateVector.errorRate }}%</span>
-            </div>
+      <div class="ad-header__center">
+        <!-- Summary pills -->
+        <div class="summary-pills" *ngIf="(state$ | async) as s">
+          <div class="summary-pill summary-pill--up">
+            <span class="summary-pill__icon">&#8593;</span>
+            <span class="summary-pill__val">{{ totalScaleUp(s) }}</span>
+            <span class="summary-pill__lbl">Scale Up</span>
+          </div>
+          <div class="summary-pill summary-pill--hold">
+            <span class="summary-pill__icon">&#9679;</span>
+            <span class="summary-pill__val">{{ totalHold(s) }}</span>
+            <span class="summary-pill__lbl">Hold</span>
+          </div>
+          <div class="summary-pill summary-pill--down">
+            <span class="summary-pill__icon">&#8595;</span>
+            <span class="summary-pill__val">{{ totalScaleDown(s) }}</span>
+            <span class="summary-pill__lbl">Scale Down</span>
           </div>
         </div>
+      </div>
 
-        <!-- Q-Values -->
-        <div class="details-section">
-          <h3 class="section-title">Q-VALUES</h3>
-          <div class="q-values-list">
-            <div class="q-value-item">
-              <div class="q-value-header">
-                <span class="q-value-label">Scale Up</span>
-                <span class="q-value-number" [ngClass]="getQValueClass(selectedDecision.qValues.scaleUp)">
-                  {{ formatQValue(selectedDecision.qValues.scaleUp) }}
+      <div class="ad-header__right">
+        <span class="live-pill" [class.live-pill--off]="!((state$ | async)?.connected)">
+          <span class="lpulse"></span>
+          {{ (state$ | async)?.connected ? 'LIVE' : 'OFFLINE' }}
+        </span>
+        <span class="xbadge xbadge--cyan">
+          {{ (state$ | async)?.totalDecisions | number }} decisions
+        </span>
+        <button class="export-btn" (click)="onExport()">
+          <i class="pi pi-download"></i> Export CSV
+        </button>
+        <div class="clock">{{ now | date:'HH:mm:ss' }}</div>
+      </div>
+    </header>
+
+    <!-- ══ SEARCH + FILTER BAR ═══════════════════════════════════════════════ -->
+    <div class="filter-bar">
+      <div class="filter-bar__search">
+        <i class="pi pi-search"></i>
+        <input type="text"
+               [(ngModel)]="searchText"
+               (ngModelChange)="onFilterChange()"
+               placeholder="Search deployment name…"
+               class="search-input" />
+        <button class="clear-btn" *ngIf="searchText" (click)="clearSearch()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="filter-bar__actions">
+        <button class="filter-chip"
+                *ngFor="let f of actionFilters"
+                [class.filter-chip--active]="selectedFilter === f.value"
+                [class]="'filter-chip filter-chip--' + f.accent + (selectedFilter === f.value ? ' filter-chip--active' : '')"
+                (click)="setFilter(f.value)">
+          {{ f.label }}
+        </button>
+      </div>
+
+      <div class="filter-bar__agent" *ngIf="(state$ | async)?.agentKeys?.length! > 1">
+        <span class="filter-label">Agent:</span>
+        <button class="filter-chip filter-chip--agent"
+                *ngFor="let k of (state$ | async)?.agentKeys"
+                [class.filter-chip--active]="selectedAgent === k"
+                (click)="setAgent(k)">
+          {{ shortName(k) }}
+        </button>
+        <button class="filter-chip"
+                [class.filter-chip--active]="selectedAgent === ''"
+                (click)="setAgent('')">
+          All
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ MAIN LAYOUT: TABLE + DETAIL PANEL ═════════════════════════════════ -->
+    <div class="main-layout">
+
+      <!-- ── Decision Table ─────────────────────────────────────────────────── -->
+      <div class="panel table-panel">
+        <div class="panel__hd">
+          <div>
+            <div class="panel__title">Decision Log</div>
+            <div class="panel__sub">{{ filteredDecisions.length }} matching decisions</div>
+          </div>
+          <span class="xbadge xbadge--violet">
+            PPO &middot; Step {{ latestStep | number }}
+          </span>
+        </div>
+
+        <!-- Loading state -->
+        <div class="table-loading" *ngIf="(state$ | async)?.loading">
+          <div class="boot-logo">&#x26A1;</div>
+          <p>Connecting to RL Agent&hellip;</p>
+          <div class="boot-bar"><div class="boot-fill"></div></div>
+        </div>
+
+        <!-- Empty state -->
+        <div class="table-empty"
+             *ngIf="!(state$ | async)?.loading && filteredDecisions.length === 0">
+          <div class="table-empty__icon">&#x1F4CB;</div>
+          <p class="table-empty__title">No decisions yet</p>
+          <p class="table-empty__sub">
+            {{ (state$ | async)?.connected
+              ? 'Waiting for the PPO agent to make its first decision…'
+              : 'Check that Flask is running at ' + svc.rlAgentUrl }}
+          </p>
+        </div>
+
+        <!-- Table -->
+        <div class="tbl-wrap" *ngIf="filteredDecisions.length > 0">
+          <p-table [value]="filteredDecisions"
+                   [scrollable]="true"
+                   scrollHeight="calc(100vh - 320px)"
+                   selectionMode="single"
+                   [(selection)]="selectedDecision"
+                   dataKey="id"
+                   (onRowSelect)="onRowSelect($event)"
+                   styleClass="ad-tbl">
+            <ng-template pTemplate="header">
+              <tr>
+                <th style="width:44px"></th>
+                <th>Deployment</th>
+                <th>Action</th>
+                <th>Replicas</th>
+                <th>Reward</th>
+                <th>Confidence</th>
+                <th>V(s)</th>
+                <th>Steps</th>
+                <th>Time</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-d>
+              <tr [pSelectableRow]="d"
+                  [class.row-flash]="d.isNew"
+                  [class.row-selected]="selectedDecision?.id === d.id">
+                <td>
+                  <div class="dep-icon">&#x2B21;</div>
+                </td>
+                <td>
+                  <div class="dep-name">{{ d.deployment }}</div>
+                  <div class="dep-ns">{{ d.namespace }}</div>
+                </td>
+                <td>
+                  <span class="achip" [ngClass]="'achip--'+d.action">
+                    {{ d.action === 'scale_up' ? '&#8593; Scale Up'
+                     : d.action === 'scale_down' ? '&#8595; Scale Down'
+                     : '&#9679; Hold' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="replica-change">
+                    {{ d.replicasBefore }}
+                    <span class="rep-arrow"
+                          [style.color]="d.action==='scale_up'?'#10b981':d.action==='scale_down'?'#ef4444':'#64748b'">
+                      {{ d.action==='scale_up' ? '&#8599;' : d.action==='scale_down' ? '&#8600;' : '&#8594;' }}
+                    </span>
+                    {{ d.replicasAfter }}
+                  </span>
+                </td>
+                <td>
+                  <span [class.rp]="d.reward > 0" [class.rn]="d.reward <= 0">
+                    {{ d.reward > 0 ? '+' : '' }}{{ d.reward | number:'1.3-3' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="conf-inline">
+                    <div class="conf-track">
+                      <div class="conf-fill" [style.width.%]="d.confidence * 100"></div>
+                    </div>
+                    <span class="mono">{{ d.confidence | percent:'1.0-0' }}</span>
+                  </div>
+                </td>
+                <td class="mono"
+                    [style.color]="d.valueEstimate > 0 ? '#10b981' : '#ef4444'">
+                  {{ d.valueEstimate | number:'1.3-3' }}
+                </td>
+                <td class="mono dim">{{ d.trainingSteps | number }}</td>
+                <td class="mono dim">{{ d.timestamp | date:'HH:mm:ss' }}</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div><!-- /table-panel -->
+
+      <!-- ── Decision Detail Panel ──────────────────────────────────────────── -->
+      <div class="panel detail-panel" [class.detail-panel--empty]="!selectedDecision">
+
+        <!-- Empty placeholder -->
+        <div class="detail-empty" *ngIf="!selectedDecision">
+          <div class="detail-empty__icon">&#x1F4CB;</div>
+          <p>Select a decision<br>to inspect details</p>
+        </div>
+
+        <ng-container *ngIf="selectedDecision as d">
+          <div class="panel__hd">
+            <div>
+              <div class="panel__title">Decision Details</div>
+              <div class="panel__sub">{{ d.deployment }} &middot; {{ d.namespace }}</div>
+            </div>
+            <span class="achip achip--lg" [ngClass]="'achip--'+d.action">
+              {{ d.action === 'scale_up' ? '&#8593; Scale Up'
+               : d.action === 'scale_down' ? '&#8595; Scale Down'
+               : '&#9679; Hold' }}
+            </span>
+          </div>
+
+          <div class="detail-body">
+
+            <!-- Action outcome -->
+            <div class="detail-section">
+              <div class="section-title">ACTION OUTCOME</div>
+              <div class="outcome-card">
+                <div class="outcome-replicas">
+                  <span class="outcome-rep-num">{{ d.replicasBefore }}</span>
+                  <div class="outcome-arrow"
+                       [style.color]="d.action==='scale_up'?'#10b981':d.action==='scale_down'?'#ef4444':'#64748b'">
+                    {{ d.action==='scale_up' ? '&#8599;' : d.action==='scale_down' ? '&#8600;' : '&#8594;' }}
+                  </div>
+                  <span class="outcome-rep-num" [style.color]="d.action==='scale_up'?'#10b981':d.action==='scale_down'?'#ef4444':'#f1f5f9'">
+                    {{ d.replicasAfter }}
+                  </span>
+                  <span class="outcome-rep-lbl">replicas</span>
+                </div>
+                <div class="outcome-meta">
+                  <div class="outcome-reward"
+                       [style.color]="d.reward > 0 ? '#10b981' : '#ef4444'">
+                    {{ d.reward > 0 ? '+' : '' }}{{ d.reward | number:'1.3-3' }}
+                    <span class="outcome-reward-lbl">reward</span>
+                  </div>
+                  <div class="outcome-cost">
+                    ${{ d.estimatedCost | number:'1.2-2' }}/hr
+                    <span class="outcome-reward-lbl">est. cost</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action probabilities -->
+            <div class="detail-section">
+              <div class="section-title">POLICY OUTPUT &mdash; ACTION PROBABILITIES</div>
+              <div class="prob-bars">
+                <div class="prob-bar-item" *ngFor="let p of actionProbDisplay(d)">
+                  <div class="prob-bar-item__header">
+                    <span class="prob-bar-item__name" [style.color]="p.color">{{ p.label }}</span>
+                    <span class="prob-bar-item__pct" [style.color]="p.color">
+                      {{ p.prob | percent:'1.1-1' }}
+                    </span>
+                  </div>
+                  <div class="prob-bar-item__track">
+                    <div class="prob-bar-item__fill"
+                         [style.width.%]="p.prob * 100"
+                         [style.background]="p.color"
+                         [style.box-shadow]="'0 0 8px '+p.color+'60'">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="value-est-row">
+                <span class="value-est-lbl">Value Estimate V(s)</span>
+                <span class="value-est-val"
+                      [style.color]="d.valueEstimate > 0 ? '#10b981' : '#ef4444'">
+                  {{ d.valueEstimate | number:'1.4-4' }}
                 </span>
               </div>
-              <div class="q-value-bar-container">
-                <div 
-                  class="q-value-bar scale-up-bar" 
-                  [style.width.%]="getBarWidth(selectedDecision.qValues.scaleUp)">
+              <div class="confidence-row">
+                <span class="value-est-lbl">Confidence</span>
+                <div class="conf-inline">
+                  <div class="conf-track conf-track--wide">
+                    <div class="conf-fill"
+                         [style.width.%]="d.confidence * 100"
+                         [style.background]="d.confidence >= 0.6 ? 'linear-gradient(90deg,#8b5cf6,#22d3ee)' : 'linear-gradient(90deg,#f59e0b,#ef4444)'">
+                    </div>
+                  </div>
+                  <span class="conf-pct"
+                        [style.color]="d.confidence >= 0.6 ? '#22d3ee' : '#f59e0b'">
+                    {{ d.confidence | percent:'1.1-1' }}
+                    <span style="color:#64748b;font-size:10px"> (gate: 60%)</span>
+                  </span>
                 </div>
               </div>
             </div>
 
-            <div class="q-value-item">
-              <div class="q-value-header">
-                <span class="q-value-label">Maintain</span>
-                <span class="q-value-number" [ngClass]="getQValueClass(selectedDecision.qValues.maintain)">
-                  {{ formatQValue(selectedDecision.qValues.maintain) }}
-                </span>
-              </div>
-              <div class="q-value-bar-container">
-                <div 
-                  class="q-value-bar maintain-bar" 
-                  [style.width.%]="getBarWidth(selectedDecision.qValues.maintain)">
+            <!-- State vector -->
+            <div class="detail-section">
+              <div class="section-title">STATE VECTOR AT DECISION TIME</div>
+              <div class="state-grid-detail">
+                <div class="state-item-d" *ngFor="let sv of stateDisplay(d)">
+                  <div class="state-item-d__label">{{ sv.label }}</div>
+                  <div class="state-item-d__val" [style.color]="sv.color">{{ sv.display }}</div>
+                  <div class="state-item-d__track">
+                    <div class="state-item-d__fill"
+                         [style.width.%]="sv.barPct"
+                         [style.background]="sv.color">
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div class="q-value-item">
-              <div class="q-value-header">
-                <span class="q-value-label">Scale Down</span>
-                <span class="q-value-number" [ngClass]="getQValueClass(selectedDecision.qValues.scaleDown)">
-                  {{ formatQValue(selectedDecision.qValues.scaleDown) }}
-                </span>
-              </div>
-              <div class="q-value-bar-container">
-                <div 
-                  class="q-value-bar scale-down-bar" 
-                  [style.width.%]="getBarWidth(Math.abs(selectedDecision.qValues.scaleDown))">
+            <!-- Buffer + Training -->
+            <div class="detail-section">
+              <div class="section-title">TRAINING CONTEXT</div>
+              <div class="training-ctx">
+                <div class="tctx-item">
+                  <div class="tctx-item__label">Buffer</div>
+                  <div class="tctx-item__val" style="color:#3b82f6">
+                    {{ d.bufferSize }}<span style="color:#64748b">/32</span>
+                  </div>
+                  <div class="tctx-item__bar">
+                    <div class="tctx-item__fill"
+                         [style.width.%]="(d.bufferSize / 32) * 100"
+                         [style.background]="d.bufferSize >= 32 ? '#10b981' : '#3b82f6'">
+                    </div>
+                  </div>
+                </div>
+                <div class="tctx-item">
+                  <div class="tctx-item__label">Training Step</div>
+                  <div class="tctx-item__val" style="color:#22d3ee">{{ d.trainingSteps | number }}</div>
+                </div>
+                <div class="tctx-item">
+                  <div class="tctx-item__label">Timestamp</div>
+                  <div class="tctx-item__val" style="color:#94a3b8;font-size:13px">
+                    {{ d.timestamp | date:'yyyy-MM-dd HH:mm:ss' }}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Action Taken -->
-        <div class="details-section">
-          <h3 class="section-title">ACTION TAKEN</h3>
-          <div class="action-taken-card">
-            <div class="action-badge-large" [ngClass]="getActionClass(selectedDecision.action)">
-              <i class="pi" [ngClass]="getActionIcon(selectedDecision.action)"></i>
-              <span>{{ getActionLabel(selectedDecision.action) }}</span>
-            </div>
-            <div class="action-reward">
-              {{ selectedDecision.reward >= 0 ? '+' : '' }}{{ formatReward(selectedDecision.reward) }}
-            </div>
-          </div>
-          
-          <div class="replica-change-display">
-            <span class="replica-number">{{ selectedDecision.replicasBefore }}</span>
-            <i class="pi" 
-               [ngClass]="selectedDecision.action === 'scale-up' ? 'pi-arrow-up' : 
-                          selectedDecision.action === 'scale-down' ? 'pi-arrow-down' : 'pi-arrows-h'"
-               class="replica-arrow">
-            </i>
-            <span class="replica-number">{{ selectedDecision.replicasAfter }}</span>
-            <span class="replica-label">replicas</span>
-          </div>
-        </div>
+          </div><!-- /detail-body -->
+        </ng-container>
+      </div><!-- /detail-panel -->
 
-        <!-- Estimated Cost -->
-        <div class="details-section">
-          <h3 class="section-title">ESTIMATED COST</h3>
-          <div class="cost-display">
-            <span class="cost-value">${{ selectedDecision.estimatedCost.toFixed(2) }}</span>
-            <span class="cost-period">/hour</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+    </div><!-- /main-layout -->
+
+    <footer class="ad-footer">
+      MARLS Agent Decisions &middot; PPO Algorithm &middot; Go Controller + Flask Agent
+      &middot; {{ (state$ | async)?.totalDecisions | number }} total &middot; {{ now | date:'HH:mm:ss' }}
+    </footer>
+
+  </div><!-- /ad-content -->
 </div>

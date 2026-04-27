@@ -1,414 +1,180 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  Component, OnInit, OnDestroy, ChangeDetectorRef,
+  ChangeDetectionStrategy
+} from '@angular/core';
+import { TableRowSelectEvent } from 'primeng/table';
+import { CommonModule, DecimalPipe, DatePipe, PercentPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
+import { interval, Observable, Subscription } from 'rxjs';
 import { TableModule } from 'primeng/table';
+import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { DropdownModule } from 'primeng/dropdown';
-import { TagModule } from 'primeng/tag';
-import { CardModule } from 'primeng/card';
 
-interface Decision {
-  id: string;
-  deployment: string;
-  action: 'scale-up' | 'scale-down' | 'maintain';
-  replicasBefore: number;
-  replicasAfter: number;
-  reward: number;
-  epsilon: number;
-  timestamp: string;
-  stateVector: {
-    cpu: number;
-    memory: number;
-    latency: number;
-    errorRate: number;
-  };
-  qValues: {
-    scaleUp: number;
-    maintain: number;
-    scaleDown: number;
-  };
-  estimatedCost: number;
-}
-
-interface ActionFilter {
-  label: string;
-  value: string;
-}
+import {
+  AgentDecisionsService,
+  AgentDecisionsState,
+  DecisionEntry,
+} from '../../services/agent-decisions.service';
 
 @Component({
   selector: 'app-agent-decisions',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Default,
   imports: [
-    CommonModule,
-    FormsModule,
-    ButtonModule,
-    TableModule,
-    InputTextModule,
-    DropdownModule,
-    TagModule,
-    CardModule,
+    CommonModule, FormsModule, DecimalPipe, DatePipe, PercentPipe,
+    TableModule, ButtonModule, InputTextModule,
   ],
   templateUrl: './agent-decisions.component.html',
-  styleUrl: './agent-decisions.component.scss',
+  styleUrl:    './agent-decisions.component.scss',
 })
-export class AgentDecisionsComponent implements OnInit {
-  searchText: string = '';
-  selectedActionFilter: string = 'all';
-  
-  actionFilters: ActionFilter[] = [
-    { label: 'All Actions', value: 'all' },
-    { label: 'Scale Up', value: 'scale-up' },
-    { label: 'Scale Down', value: 'scale-down' },
-    { label: 'Maintain', value: 'maintain' }
+export class AgentDecisionsComponent implements OnInit, OnDestroy {
+
+  // ── Observables ─────────────────────────────────────────────────────────
+  state$: Observable<AgentDecisionsState>;
+
+  // ── Filter state ─────────────────────────────────────────────────────────
+  searchText     = '';
+  selectedFilter = 'all';
+  selectedAgent  = '';
+
+  // ── Table selection ───────────────────────────────────────────────────────
+  selectedDecision: DecisionEntry | null = null;
+
+  // ── Clock ─────────────────────────────────────────────────────────────────
+  now = new Date();
+
+  // ── Derived display ───────────────────────────────────────────────────────
+  filteredDecisions: DecisionEntry[] = [];
+  latestStep = 0;
+
+  readonly actionFilters = [
+    { label: 'All',        value: 'all',        accent: 'muted'  },
+    { label: '&#8593; Scale Up',   value: 'scale_up',   accent: 'green'  },
+    { label: '&#9679; Hold',       value: 'no_action',  accent: 'muted'  },
+    { label: '&#8595; Scale Down', value: 'scale_down', accent: 'red'    },
   ];
 
-  decisions: Decision[] = [
-    {
-      id: '1',
-      deployment: 'notification-worker',
-      action: 'scale-up',
-      replicasBefore: 1,
-      replicasAfter: 2,
-      reward: 0.4800,
-      epsilon: 0.6800,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 88.0,
-        memory: 75.0,
-        latency: 85.0,
-        errorRate: 0.02
-      },
-      qValues: {
-        scaleUp: 0.620,
-        maintain: 0.280,
-        scaleDown: -0.180
-      },
-      estimatedCost: 1.80
-    },
-    {
-      id: '2',
-      deployment: 'payment-service',
-      action: 'scale-up',
-      replicasBefore: 2,
-      replicasAfter: 3,
-      reward: 0.7200,
-      epsilon: 0.6200,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 92.5,
-        memory: 82.0,
-        latency: 95.0,
-        errorRate: 0.05
-      },
-      qValues: {
-        scaleUp: 0.720,
-        maintain: 0.350,
-        scaleDown: -0.220
-      },
-      estimatedCost: 2.40
-    },
-    {
-      id: '3',
-      deployment: 'api-gateway',
-      action: 'scale-down',
-      replicasBefore: 6,
-      replicasAfter: 5,
-      reward: 0.3200,
-      epsilon: 0.6500,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 35.0,
-        memory: 42.0,
-        latency: 45.0,
-        errorRate: 0.01
-      },
-      qValues: {
-        scaleUp: 0.150,
-        maintain: 0.280,
-        scaleDown: 0.320
-      },
-      estimatedCost: 2.10
-    },
-    {
-      id: '4',
-      deployment: 'notification-worker',
-      action: 'maintain',
-      replicasBefore: 2,
-      replicasAfter: 2,
-      reward: 0.2800,
-      epsilon: 0.6200,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 55.0,
-        memory: 60.0,
-        latency: 70.0,
-        errorRate: 0.02
-      },
-      qValues: {
-        scaleUp: 0.250,
-        maintain: 0.380,
-        scaleDown: 0.120
-      },
-      estimatedCost: 1.60
-    },
-    {
-      id: '5',
-      deployment: 'api-gateway',
-      action: 'maintain',
-      replicasBefore: 5,
-      replicasAfter: 5,
-      reward: 0.4500,
-      epsilon: 0.6200,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 60.0,
-        memory: 58.0,
-        latency: 65.0,
-        errorRate: 0.01
-      },
-      qValues: {
-        scaleUp: 0.380,
-        maintain: 0.450,
-        scaleDown: 0.200
-      },
-      estimatedCost: 2.00
-    },
-    {
-      id: '6',
-      deployment: 'user-service',
-      action: 'scale-up',
-      replicasBefore: 3,
-      replicasAfter: 4,
-      reward: 0.5200,
-      epsilon: 0.6800,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 78.0,
-        memory: 72.0,
-        latency: 80.0,
-        errorRate: 0.03
-      },
-      qValues: {
-        scaleUp: 0.520,
-        maintain: 0.310,
-        scaleDown: -0.150
-      },
-      estimatedCost: 1.90
-    },
-    {
-      id: '7',
-      deployment: 'api-gateway',
-      action: 'scale-up',
-      replicasBefore: 3,
-      replicasAfter: 5,
-      reward: 0.6500,
-      epsilon: 0.6200,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 85.0,
-        memory: 80.0,
-        latency: 90.0,
-        errorRate: 0.04
-      },
-      qValues: {
-        scaleUp: 0.650,
-        maintain: 0.400,
-        scaleDown: -0.100
-      },
-      estimatedCost: 2.30
-    },
-    {
-      id: '8',
-      deployment: 'payment-service',
-      action: 'maintain',
-      replicasBefore: 3,
-      replicasAfter: 3,
-      reward: 0.4200,
-      epsilon: 0.6500,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 62.0,
-        memory: 65.0,
-        latency: 68.0,
-        errorRate: 0.02
-      },
-      qValues: {
-        scaleUp: 0.350,
-        maintain: 0.420,
-        scaleDown: 0.180
-      },
-      estimatedCost: 1.70
-    },
-    {
-      id: '9',
-      deployment: 'user-service',
-      action: 'scale-down',
-      replicasBefore: 5,
-      replicasAfter: 4,
-      reward: 0.3800,
-      epsilon: 0.6200,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 42.0,
-        memory: 48.0,
-        latency: 52.0,
-        errorRate: 0.01
-      },
-      qValues: {
-        scaleUp: 0.200,
-        maintain: 0.300,
-        scaleDown: 0.380
-      },
-      estimatedCost: 1.85
-    },
-    {
-      id: '10',
-      deployment: 'api-gateway',
-      action: 'scale-up',
-      replicasBefore: 4,
-      replicasAfter: 6,
-      reward: 0.5800,
-      epsilon: 0.6500,
-      timestamp: '17:15:36',
-      stateVector: {
-        cpu: 82.0,
-        memory: 78.0,
-        latency: 88.0,
-        errorRate: 0.03
-      },
-      qValues: {
-        scaleUp: 0.580,
-        maintain: 0.380,
-        scaleDown: -0.120
-      },
-      estimatedCost: 2.50
+  private subs = new Subscription();
+
+  constructor(
+    public svc: AgentDecisionsService,   // public so template can access svc.rlAgentUrl
+    private cdr: ChangeDetectorRef,
+  ) {
+    this.state$ = this.svc.state$;
+  }
+
+  ngOnInit(): void {
+    // Clock
+    this.subs.add(interval(1000).subscribe(() => {
+      this.now = new Date();
+      this.cdr.detectChanges();
+    }));
+
+    // Rebuild filtered list whenever state changes
+    this.subs.add(this.svc.state$.subscribe((s: AgentDecisionsState) => {
+      this.rebuildFiltered(s);
+      if (s.decisions.length) {
+        this.latestStep = Math.max(...s.decisions.map(d => d.trainingSteps));
+      }
+      this.cdr.detectChanges();
+    }));
+  }
+
+  ngOnDestroy(): void {
+    this.subs.unsubscribe();
+  }
+
+  // ── Filter logic ─────────────────────────────────────────────────────────
+
+  private rebuildFiltered(s: AgentDecisionsState): void {
+    let list = s.decisions;
+
+    // Agent filter
+    if (this.selectedAgent) {
+      list = list.filter(d => d.agentKey === this.selectedAgent);
     }
-  ];
 
-  selectedDecision: Decision | null = null;
-  filteredDecisions: Decision[] = [];
-  totalDecisions: number = 10;
+    // Action filter
+    list = this.svc.filterByAction(list, this.selectedFilter);
 
-  // Expose Math to template
-  Math = Math;
+    // Text search
+    list = this.svc.filterBySearch(list, this.searchText);
 
-  constructor() {}
+    this.filteredDecisions = list;
+  }
 
-  ngOnInit() {
-    this.filteredDecisions = [...this.decisions];
-    this.totalDecisions = this.decisions.length;
+  onFilterChange(): void {
+    const s = this.svc.state$ as any;
+    // Re-read current state synchronously via the BehaviorSubject value
+    const current = (this.svc as any).stateSub$?.getValue();
+    if (current) this.rebuildFiltered(current);
+  }
+
+  setFilter(value: string): void {
+    this.selectedFilter = value;
+    this.onFilterChange();
+  }
+
+  setAgent(key: string): void {
+    this.selectedAgent = key;
+    this.onFilterChange();
+  }
+
+  clearSearch(): void {
+    this.searchText = '';
+    this.onFilterChange();
+  }
+
+  onRowSelect(event: TableRowSelectEvent): void {
+    this.selectedDecision = event.data as DecisionEntry;
     
-    // Select first decision by default
-    if (this.decisions.length > 0) {
-      this.selectedDecision = this.decisions[0];
-    }
+    this.cdr.detectChanges();
   }
 
-  onSearchChange() {
-    this.applyFilters();
+  // ── Summary aggregators ───────────────────────────────────────────────────
+
+  totalScaleUp(s: AgentDecisionsState): number {
+    return Object.values(s.summary).reduce((t, v) => t + v.scaleUpCount, 0);
   }
 
-  onActionFilterChange() {
-    this.applyFilters();
+  totalScaleDown(s: AgentDecisionsState): number {
+    return Object.values(s.summary).reduce((t, v) => t + v.scaleDownCount, 0);
   }
 
-  applyFilters() {
-    let filtered = [...this.decisions];
-
-    // Apply search filter
-    if (this.searchText.trim()) {
-      const searchLower = this.searchText.toLowerCase();
-      filtered = filtered.filter(d => 
-        d.deployment.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply action filter
-    if (this.selectedActionFilter !== 'all') {
-      filtered = filtered.filter(d => d.action === this.selectedActionFilter);
-    }
-
-    this.filteredDecisions = filtered;
+  totalHold(s: AgentDecisionsState): number {
+    return Object.values(s.summary).reduce((t, v) => t + v.holdCount, 0);
   }
 
-  selectDecision(decision: Decision) {
-    this.selectedDecision = decision;
+  // ── Template helpers ──────────────────────────────────────────────────────
+
+  shortName(key: string): string {
+    return key.split('/').pop() ?? key;
   }
 
-  getActionIcon(action: string): string {
-    switch (action) {
-      case 'scale-up':
-        return 'pi-arrow-up';
-      case 'scale-down':
-        return 'pi-arrow-down';
-      case 'maintain':
-        return 'pi-minus';
-      default:
-        return 'pi-circle';
-    }
+  onExport(): void {
+    this.svc.exportCSV(this.filteredDecisions);
   }
 
-  getActionClass(action: string): string {
-    switch (action) {
-      case 'scale-up':
-        return 'action-scale-up';
-      case 'scale-down':
-        return 'action-scale-down';
-      case 'maintain':
-        return 'action-maintain';
-      default:
-        return '';
-    }
+  actionProbDisplay(d: DecisionEntry): { label: string; prob: number; color: string }[] {
+    const p = d.actionProbs ?? [0.33, 0.34, 0.33];
+    return [
+      { label: '&#8595; Scale Down', prob: p[0], color: '#ef4444' },
+      { label: '&#9679; Hold',       prob: p[1], color: '#64748b' },
+      { label: '&#8593; Scale Up',   prob: p[2], color: '#10b981' },
+    ];
   }
 
-  getActionLabel(action: string): string {
-    switch (action) {
-      case 'scale-up':
-        return 'scale up';
-      case 'scale-down':
-        return 'scale down';
-      case 'maintain':
-        return 'maintain';
-      default:
-        return action;
-    }
-  }
-
-  getReplicaChange(decision: Decision): string {
-    if (decision.action === 'scale-up') {
-      return `${decision.replicasBefore} ↗ ${decision.replicasAfter}`;
-    } else if (decision.action === 'scale-down') {
-      return `${decision.replicasBefore} ↘ ${decision.replicasAfter}`;
-    } else {
-      return `${decision.replicasBefore} — ${decision.replicasAfter}`;
-    }
-  }
-
-  formatReward(reward: number): string {
-    return reward.toFixed(4);
-  }
-
-  formatEpsilon(epsilon: number): string {
-    return epsilon.toFixed(4);
-  }
-
-  formatQValue(value: number): string {
-    return value.toFixed(3);
-  }
-
-  getQValueClass(value: number): string {
-    if (value > 0.4) return 'q-value-high';
-    if (value > 0) return 'q-value-medium';
-    return 'q-value-low';
-  }
-
-  exportCSV() {
-    // Implementation for CSV export
-    console.log('Exporting to CSV...');
-  }
-
-  getBarWidth(value: number, max: number = 1): number {
-    return (Math.abs(value) / max) * 100;
+  stateDisplay(d: DecisionEntry): { label: string; display: string; barPct: number; color: string }[] {
+    const sv = d.stateVector;
+    return [
+      { label: 'CPU',          display: sv.cpu + '%',                barPct: sv.cpu,                    color: '#22d3ee' },
+      { label: 'Memory',       display: sv.memory + '%',             barPct: sv.memory,                 color: '#10b981' },
+      { label: 'Latency P95',  display: sv.latency + 'ms',           barPct: Math.min(100, sv.latency / 10), color: sv.latency > 500 ? '#ef4444' : '#f59e0b' },
+      { label: 'Error Rate',   display: sv.errorRate + '%',          barPct: Math.min(100, sv.errorRate * 10), color: sv.errorRate > 5 ? '#ef4444' : '#10b981' },
+      { label: 'Replicas',     display: sv.replicas + ' pods',       barPct: (sv.replicas / 20) * 100,  color: '#3b82f6' },
+      { label: 'Request Rate', display: sv.requestRate.toFixed(1) + ' rps', barPct: Math.min(100, sv.requestRate), color: '#8b5cf6' },
+      { label: 'Pod Ready',    display: sv.podReady + ' ready',      barPct: Math.min(100, sv.podReady * 20), color: '#10b981' },
+      { label: 'Pod Pending',  display: sv.podPending + ' pending',  barPct: Math.min(100, sv.podPending * 25), color: sv.podPending > 0 ? '#f59e0b' : '#64748b' },
+    ];
   }
 }
