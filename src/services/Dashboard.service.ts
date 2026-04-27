@@ -3,7 +3,6 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, interval, Observable, of, Subscription } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
-// ── Flask /dashboard response types ──────────────────────────────────────────
 
 export interface AgentDecision {
   timestamp: string;

@@ -289,54 +289,54 @@ export class MainsectionComponent implements OnInit {
   filterSidebarNavs() {
     if (this.userRole) {
       const allNavItems = [
-          {
-            icon: 'pi pi-home', // better than pi-th-large
-            title: 'Dashboard',
-            routerLink: '',
-            id: '',
-          },
+      {
+        icon: 'pi pi-home', // better than pi-th-large
+        title: 'Dashboard',
+        routerLink: '',
+        id: '',
+      },
 
-          {
-            icon: 'pi pi-share-alt', // decisions / flow / branching logic
-            title: 'Agent Decisions',
-            routerLink: '/agent-decisions',
-            id: 'DTO5226',
-          },
+      {
+        icon: 'pi pi-share-alt', // decisions / flow / branching logic
+        title: 'Agent Decisions',
+        routerLink: '/agent-decisions',
+        id: 'DTO5226',
+      },
 
-          {
-            icon: 'pi pi-chart-line', // metrics = graphs 📈
-            title: 'Training Metrics',
-            routerLink: '/training-metrics',
-            id: 'DTO5225',
-          },
+      {
+        icon: 'pi pi-chart-line', // metrics = graphs 📈
+        title: 'Training Metrics',
+        routerLink: '/training-metrics',
+        id: 'DTO5225',
+      },
 
-          {
-            icon: 'pi pi-cloud-upload', // deployment = pushing to cloud
-            title: 'Deployment',
-            routerLink: '/deployment',
-            id: 'DTO5224',
-          },
+      // {
+      //   icon: 'pi pi-cloud-upload', // deployment = pushing to cloud
+      //   title: 'Deployment',
+      //   routerLink: '/deployment',
+      //   id: 'DTO5224',
+      // },
 
-          {
-            icon: 'pi pi-sync', // autoscaling = dynamic / scaling
-            title: 'Pod-Auto-Scaling',
-            routerLink: '/pod-auto-scaling',
-            id: 'DTO5223',
-          },
+      {
+        icon: 'pi pi-sync', // autoscaling = dynamic / scaling
+        title: 'Pod-Auto-Scaling',
+        routerLink: '/pod-auto-scaling',
+        id: 'DTO5223',
+      },
 
-          {
-            icon: 'pi pi-chart-bar', // Grafana = dashboards/visualization
-            title: 'Grafana',
-            routerLink: '/grafana',
-          },
+      {
+        icon: 'pi pi-chart-bar', // Grafana = dashboards/visualization
+        title: 'Grafana',
+        routerLink: '/grafana',
+      },
 
-          {
-            icon: 'pi pi-cog', // settings is fine
-            title: 'Settings',
-            routerLink: '/organization',
-            id: 'DTO5232',
-          },
-        ];
+      {
+        icon: 'pi pi-cog', // settings is fine
+        title: 'Settings',
+        routerLink: '/organization',
+        id: 'DTO5232',
+      },
+    ];
 
       const filteredItems = allNavItems.filter((item) => {
         if (!item.id) {
