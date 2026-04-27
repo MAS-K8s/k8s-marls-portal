@@ -10,10 +10,7 @@ import { TableModule }  from 'primeng/table';
 import { TagModule }    from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 
-// ── Adjust this path to wherever you placed the service ──────────────────────
-import {
-  MarlsDashboardService,
-  MarlsVM, AgentVM, AgentDecision, TrainingStep,
+import { MarlsDashboardService, MarlsVM, AgentVM, AgentDecision, TrainingStep,
 } from '../../../services/Dashboard.service';
 
 interface DecisionRow {
