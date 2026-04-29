@@ -110,7 +110,7 @@ export interface MarlsVM {
 export class MarlsDashboardService implements OnDestroy {
 
   // ⬇ Change this to your Flask host if not localhost
-  private readonly RL_URL = 'http://localhost:5000';
+  private readonly RL_URL = 'https://rl-agent.dev-sachin.co.uk';
   private readonly POLL_MS = 3000;
   private readonly RING = 30;
 
