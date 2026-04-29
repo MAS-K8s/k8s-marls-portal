@@ -4,6 +4,8 @@ export const environment = {
   LogoLight: '#',
   LogoDark: '#',
   OrganizeUrl: 'http://127.0.0.1:8888/Organizations/api',
+  rlAgentUrl:    'https://rl-agent.dev-sachin.co.uk',
+  pollIntervalMs: 3000,
   WORKSPACEID: 'WS680',
   auth0: {
     domain: 'sachinayeshmantha.uk.auth0.com',

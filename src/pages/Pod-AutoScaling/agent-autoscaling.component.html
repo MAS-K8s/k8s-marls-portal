@@ -28,7 +28,7 @@
   <div class="cors-banner" *ngIf="corsError">
     <span class="cors-icon">⚠</span>
     <div>
-      <strong>CORS Error</strong> — Angular cannot reach <code>http://localhost:5000</code>.
+      <strong>CORS Error</strong> — Angular cannot reach <code>{{ svc.rlAgentUrl }}</code>.
       Add <code>flask-cors</code> to your Flask app:
       <code>pip install flask-cors</code> then restart Flask.
     </div>

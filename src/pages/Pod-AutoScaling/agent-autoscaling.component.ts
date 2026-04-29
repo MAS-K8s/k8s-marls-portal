@@ -1,83 +1,31 @@
 import {
   Component, OnInit, OnDestroy, NgZone,
   ChangeDetectionStrategy, ChangeDetectorRef,
-  Pipe, PipeTransform
 } from '@angular/core';
 import { CommonModule, UpperCasePipe } from '@angular/common';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { TooltipModule } from 'primeng/tooltip';
-import { interval, Subscription, of } from 'rxjs';
-import { switchMap, catchError, startWith } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 
-@Pipe({ name: 'replace', standalone: true, pure: true })
-export class ReplacePipe implements PipeTransform {
-  transform(v: string, from: string, to: string): string {
-    return v ? v.split(from).join(to) : '';
-  }
-}
+import { ReplacePipe } from '../../shared/replace.pipe';
 
-// ─── Flask /dashboard response shapes ────────────────────────────────────────
 
-interface FlaskDecision {
-  timestamp:      string;
-  action:         string;
-  action_id:      number;
-  reward:         number;
-  confidence:     number;
-  value_estimate: number;
-  replicas:       number;
-  buffer_size:    number;
-  training_steps: number;
-}
+import {
+  PodAutoscalingService,
+  AutoscalingState,
+  AgentDashboard,
+  FlaskDecision,
+  FlaskTrainingStep,
+} from '../../services/pod-autoscaling.service';
 
-interface FlaskTrainingStep {
-  timestamp:   string;
-  step:        number;
-  policy_loss: number;
-  value_loss:  number;
-  avg_reward:  number;
-  entropy:     number;
-}
-
-interface AgentDashboard {
-  last_action:            string;
-  last_action_id:         number;
-  confidence:             number;
-  action_probabilities:   number[];   // [scale_down, no_action, scale_up]
-  value_estimate:         number;
-  last_decision_ts:       string | null;
-  replicas:               number;
-  pod_ready:              number;
-  pod_pending:            number;
-  cpu_usage:              number;
-  memory_gib:             number;
-  request_rate:           number;
-  latency_p95:            number;
-  error_rate:             number;
-  training_steps:         number;
-  avg_reward_100:         number;
-  buffer_size:            number;
-  device:                 string;
-  decision_history:       FlaskDecision[];
-  training_history:       FlaskTrainingStep[];
-}
-
-interface DashboardResponse {
-  agents:          Record<string, AgentDashboard>;
-  total_agents:    number;
-  redis_available: boolean;
-  timestamp:       string;
-}
-
-// ─── Local UI types ───────────────────────────────────────────────────────────
+// ─── Local UI types (no HTTP shapes here) ────────────────────────────────────
 
 interface PodInfo {
-  transform: string;
-  height:    number;
-  gradient:  string;
-  status:    'ready' | 'pending';
-  isNew:     boolean;
-  isRemoving:boolean;
+  transform:  string;
+  height:     number;
+  gradient:   string;
+  status:     'ready' | 'pending';
+  isNew:      boolean;
+  isRemoving: boolean;
 }
 
 interface MetricBar {
@@ -88,52 +36,49 @@ interface MetricBar {
 }
 
 interface ScalingEvent {
-  action: string;
-  icon:   string;
-  from:   number;
-  to:     number;
-  time:   string;
-  tooltip:string;
+  action:  string;
+  icon:    string;
+  from:    number;
+  to:      number;
+  time:    string;
+  tooltip: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+
 @Component({
   selector: 'app-agent-autoscaling',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, TooltipModule, ReplacePipe, UpperCasePipe],
+  imports: [CommonModule, TooltipModule, ReplacePipe, UpperCasePipe],
   templateUrl: './agent-autoscaling.component.html',
   styleUrls: ['./agent-autoscaling.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AgentAutoscalingComponent implements OnInit, OnDestroy {
 
-  private readonly API  = 'http://localhost:5000';
-  private readonly POLL = 4_000;
   readonly Math = Math;
 
-  // ── connection ─────────────────────────────────────────────────────────────
-  isConnected   = false;
-  lastPollTs    = '—';
-  corsError     = false;
+  // ── Connection / multi-agent (driven by service) ──────────────────────────
+  isConnected    = false;
+  lastPollTs     = '—';
+  corsError      = false;
+  agentKeys:     string[] = [];
+  selectedKey    = '';
+  totalAgents    = 0;
+  redisAvailable = false;
 
-  // ── multi-agent ────────────────────────────────────────────────────────────
-  agentKeys:      string[] = [];       // all active agents from Flask
-  selectedKey     = '';                // currently viewed agent
-  totalAgents     = 0;
-  redisAvailable  = false;
+  // ── Current agent live data ────────────────────────────────────────────────
+  lastAction     = 'no_action';
+  actionIcon     = '○';
+  confidence     = 0;
+  valueEstimate  = 0;
+  bufferSize     = 0;
+  trainingSteps  = 0;
+  avgReward100   = 0;
+  agentDevice    = '—';
+  lastDecisionTs = '—';
 
-  // ── current agent live data ─────────────────────────────────────────────────
-  lastAction        = 'no_action';
-  actionIcon        = '○';
-  confidence        = 0;
-  valueEstimate     = 0;
-  bufferSize        = 0;
-  trainingSteps     = 0;
-  avgReward100      = 0;
-  agentDevice       = '—';
-  lastDecisionTs    = '—';
-
-  // k8s metrics
+  // k8s live metrics
   replicas    = 0;
   podReady    = 0;
   podPending  = 0;
@@ -143,30 +88,25 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
   latencyP95  = 0;
   errorRate   = 0;
 
-  // action probabilities
+  // action probabilities (%)
   probScaleDown = 33.3;
   probNoAction  = 33.3;
   probScaleUp   = 33.3;
 
-  // latest reward for KPI
   latestReward = 0;
 
-  // ── live decision feed (from Flask decision_history) ───────────────────────
-  decisions: FlaskDecision[] = [];
-
-  // ── scaling events (derived from decision history) ─────────────────────────
-  scalingEvents: ScalingEvent[] = [];
-
-  // ── training history (from Flask training_history) ─────────────────────────
+  // ── Live decision feed ────────────────────────────────────────────────────
+  decisions:     FlaskDecision[]    = [];
+  scalingEvents: ScalingEvent[]     = [];
   trainingSteps_history: FlaskTrainingStep[] = [];
 
-  // ── charts ─────────────────────────────────────────────────────────────────
+  // ── Charts ────────────────────────────────────────────────────────────────
   readonly CW = 240; readonly CH = 52;
-  rewardPoints  = ''; rewardArea  = '';
-  lossPoints    = ''; lossArea    = '';
+  rewardPoints = ''; rewardArea  = '';
+  lossPoints   = ''; lossArea    = '';
   chartMin = -60; chartMax = 0; zeroY = 26;
 
-  // ── metric bars ────────────────────────────────────────────────────────────
+  // ── Metric bars ───────────────────────────────────────────────────────────
   metricBars: MetricBar[] = [
     { label: 'CPU',         pct: 0, color: '#38bdf8', display: '0%'    },
     { label: 'Memory',      pct: 0, color: '#a78bfa', display: '0 GiB' },
@@ -174,126 +114,87 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
     { label: 'Error Rate',  pct: 0, color: '#f87171', display: '0%'    },
   ];
 
-  // ── gauge ──────────────────────────────────────────────────────────────────
+  // ── Gauge ─────────────────────────────────────────────────────────────────
   readonly ARC = 141.3;
   confidenceDash = `0 ${this.ARC}`;
   needleX2 = 60; needleY2 = 28;
 
-  // ── 3D pods ────────────────────────────────────────────────────────────────
-  podArray:     PodInfo[] = [];
-  showScaleUp   = false;
-  showScaleDown = false;
-  showAnnounce  = false;
-  announceText  = '';
-  announceCls   = '';
+  // ── 3D pods ───────────────────────────────────────────────────────────────
+  podArray:      PodInfo[] = [];
+  showScaleUp    = false;
+  showScaleDown  = false;
+  showAnnounce   = false;
+  announceText   = '';
+  announceCls    = '';
 
-  // ── private ────────────────────────────────────────────────────────────────
-  private subs          = new Subscription();
-  private prevReplicas  = -1;
-  private seenDecisions = new Set<string>(); // dedup by timestamp
+  // ── Private ───────────────────────────────────────────────────────────────
+  private subs         = new Subscription();
+  private prevReplicas = -1;
+  private seenDecisions = new Set<string>();
 
   constructor(
-    private http: HttpClient,
+    public svc: PodAutoscalingService,   // public so template can use svc.rlAgentUrl in CORS banner
     private zone: NgZone,
     private cdr: ChangeDetectorRef,
   ) {}
 
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
   ngOnInit(): void {
     this.buildPods(0, 0);
-    this.startPolling();
-  }
 
-  ngOnDestroy(): void { this.subs.unsubscribe(); }
-
-  // ── Polling ─────────────────────────────────────────────────────────────────
-
-  private startPolling(): void {
     this.subs.add(
-      interval(this.POLL).pipe(
-        startWith(0),
-        switchMap(() =>
-          this.http.get<DashboardResponse>(`${this.API}/dashboard`).pipe(
-            catchError(err => {
-              // CORS errors show up as 0-status errors
-              const isCors = err.status === 0;
-              this.zone.run(() => {
-                this.isConnected = false;
-                this.corsError   = isCors;
-                this.cdr.markForCheck();
-              });
-              return of(null);
-            })
-          )
-        )
-      ).subscribe(res => {
-        if (!res) return;
-        this.zone.run(() => {
-          this.isConnected = true;
-          this.corsError   = false;
-          this.apply(res);
-          this.cdr.markForCheck();
-        });
+      this.svc.state$.subscribe((state: AutoscalingState) => {
+        this.isConnected    = state.connected;
+        this.corsError      = state.corsError;
+        this.lastPollTs     = state.lastPollTs;
+        this.totalAgents    = state.totalAgents;
+        this.redisAvailable = state.redisAvailable;
+
+        // First connection — auto-select the first agent
+        if (state.agentKeys.length > 0 && !this.selectedKey) {
+          this.selectedKey = state.agentKeys[0];
+        }
+
+        // Always keep agentKeys in sync for the tab bar
+        this.agentKeys = state.agentKeys;
+
+        // Ingest data for the currently selected agent
+        if (this.selectedKey && state.agents[this.selectedKey]) {
+          this.ingestAgent(state.agents[this.selectedKey]);
+        }
+
+        this.cdr.markForCheck();
       })
     );
   }
 
-  // ── Apply full dashboard response ──────────────────────────────────────────
+  ngOnDestroy(): void { this.subs.unsubscribe(); }
 
-  private apply(res: DashboardResponse): void {
-    this.totalAgents    = res.total_agents    ?? 0;
-    this.redisAvailable = res.redis_available ?? false;
-    this.lastPollTs     = new Date().toLocaleTimeString();
+  // ── Agent ingestion (same logic as before, no HTTP) ───────────────────────
 
-    // ── Update agent list (dynamic — works for any number of deployments) ──
-    const incoming = Object.keys(res.agents ?? {});
-    if (incoming.length > 0) {
-      // Add any new agents
-      incoming.forEach(k => { if (!this.agentKeys.includes(k)) this.agentKeys.push(k); });
-      // Auto-select first agent if none selected yet
-      if (!this.selectedKey || !incoming.includes(this.selectedKey)) {
-        this.selectedKey = incoming[0];
-      }
-    }
+  private ingestAgent(agent: AgentDashboard): void {
+    this.lastAction     = agent.last_action     ?? 'no_action';
+    this.actionIcon     = this.iconFor(this.lastAction);
+    this.confidence     = agent.confidence      ?? 0;
+    this.valueEstimate  = agent.value_estimate  ?? 0;
+    this.bufferSize     = agent.buffer_size      ?? 0;
+    this.trainingSteps  = agent.training_steps  ?? 0;
+    this.avgReward100   = agent.avg_reward_100   ?? 0;
+    this.agentDevice    = agent.device           ?? '—';
+    this.lastDecisionTs = agent.last_decision_ts ?? '—';
 
-    // ── Apply selected agent data ──────────────────────────────────────────
-    const agent = res.agents?.[this.selectedKey];
-    if (agent) {
-      this.applyAgent(agent);
-    }
-  }
-
-  // ── Apply one agent's data ─────────────────────────────────────────────────
-
-  private applyAgent(agent: AgentDashboard): void {
-    // ── training ────────────────────────────────────────────────────────────
-    this.trainingSteps = agent.training_steps ?? 0;
-    this.bufferSize    = agent.buffer_size    ?? 0;
-    this.agentDevice   = agent.device         ?? '—';
-    this.avgReward100  = agent.avg_reward_100 ?? 0;
-
-    // ── last action + confidence ────────────────────────────────────────────
-    this.lastAction    = agent.last_action    ?? 'no_action';
-    this.actionIcon    = this.iconFor(this.lastAction);
-    this.confidence    = agent.confidence     ?? 0;
-    this.valueEstimate = agent.value_estimate ?? 0;
-
-    if (agent.last_decision_ts) {
-      try {
-        this.lastDecisionTs = new Date(agent.last_decision_ts).toLocaleTimeString();
-      } catch { this.lastDecisionTs = agent.last_decision_ts; }
-    }
-
-    // ── action probabilities ────────────────────────────────────────────────
+    // action probabilities
     if (agent.action_probabilities?.length === 3) {
       this.probScaleDown = agent.action_probabilities[0] * 100;
       this.probNoAction  = agent.action_probabilities[1] * 100;
       this.probScaleUp   = agent.action_probabilities[2] * 100;
     }
 
-    // ── gauge ────────────────────────────────────────────────────────────────
+    // gauge
     this.updateGauge(this.confidence);
 
-    // ── k8s live metrics ─────────────────────────────────────────────────────
+    // k8s live metrics
     this.cpuUsage    = agent.cpu_usage    ?? 0;
     this.memoryGib   = agent.memory_gib   ?? 0;
     this.requestRate = agent.request_rate ?? 0;
@@ -311,19 +212,17 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
     this.metricBars[3].pct     = Math.min(100, this.errorRate * 100);
     this.metricBars[3].display = `${(this.errorRate * 100).toFixed(1)}%`;
 
-    // ── replica → 3D pods ────────────────────────────────────────────────────
+    // replica → 3D pods
     const rep = agent.replicas ?? 0;
     if (rep > 0) this.handleReplicas(rep, agent.pod_ready ?? rep);
 
-    // ── decision history (from Flask ring buffer — REAL data) ────────────────
+    // decision history (dedup by timestamp)
     const hist = agent.decision_history ?? [];
-    hist.forEach(d => {
+    hist.forEach((d: FlaskDecision) => {
       if (!this.seenDecisions.has(d.timestamp)) {
         this.seenDecisions.add(d.timestamp);
-        this.decisions.unshift(d);   // newest first
-        // pick up latest reward for display
+        this.decisions.unshift(d);
         this.latestReward = d.reward;
-        // detect scaling events
         if (d.action === 'scale_up' || d.action === 'scale_down') {
           this.maybeAddScalingEvent(d);
         }
@@ -331,7 +230,7 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
     });
     if (this.decisions.length > 50) this.decisions.length = 50;
 
-    // ── training history (charts) ────────────────────────────────────────────
+    // training history → charts
     const trainHist = agent.training_history ?? [];
     if (trainHist.length > 0) {
       this.trainingSteps_history = trainHist;
@@ -339,37 +238,30 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Select agent tab ────────────────────────────────────────────────────────
+  // ── Agent tab selection ───────────────────────────────────────────────────
 
   selectAgent(key: string): void {
     if (key === this.selectedKey) return;
-    this.selectedKey    = key;
-    this.prevReplicas   = -1;
-    this.decisions      = [];
-    this.scalingEvents  = [];
-    this.seenDecisions  = new Set();
+    this.selectedKey           = key;
+    this.prevReplicas          = -1;
+    this.decisions             = [];
+    this.scalingEvents         = [];
+    this.seenDecisions         = new Set();
     this.trainingSteps_history = [];
-    this.rewardPoints   = '';
-    this.lossPoints     = '';
+    this.rewardPoints          = '';
+    this.lossPoints            = '';
     this.buildPods(0, 0);
     this.cdr.markForCheck();
   }
 
-  // ── Replica tracking ────────────────────────────────────────────────────────
+  // ── Replica tracking ──────────────────────────────────────────────────────
 
   private handleReplicas(total: number, ready: number): void {
-    this.replicas  = total;
-    const prev     = this.prevReplicas;
+    this.replicas = total;
+    const prev    = this.prevReplicas;
 
-    if (prev === -1) {
-      this.prevReplicas = total;
-      this.buildPods(total, ready);
-      return;
-    }
-    if (total === prev) {
-      this.buildPods(total, ready);
-      return;
-    }
+    if (prev === -1)      { this.prevReplicas = total; this.buildPods(total, ready); return; }
+    if (total === prev)   { this.buildPods(total, ready); return; }
 
     this.prevReplicas = total;
     if (total > prev) this.doScaleUp(prev, total, ready);
@@ -390,19 +282,22 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
       const isNew  = i === newIdx;
       const isRem  = i === total - 1 && removing;
       const h = isPend ? 28 : 40 + (i % 4) * 7;
-      const g = isNew  ? 'linear-gradient(180deg,#34d399,#059669)' :
-                isRem  ? 'linear-gradient(180deg,#f87171,#dc2626)' :
-                isPend ? 'linear-gradient(180deg,#334155,#1e293b)' :
-                         `linear-gradient(180deg,hsl(${190+i*15},68%,56%),hsl(${200+i*15},58%,36%))`;
-      return { transform: `translateX(${x}px) translateZ(${z}px)`,
-               height: h, gradient: g, status: isPend ? 'pending' : 'ready',
-               isNew, isRemoving: isRem };
+      const g = isNew  ? 'linear-gradient(180deg,#34d399,#059669)'
+              : isRem  ? 'linear-gradient(180deg,#f87171,#dc2626)'
+              : isPend ? 'linear-gradient(180deg,#334155,#1e293b)'
+                       : `linear-gradient(180deg,hsl(${190+i*15},68%,56%),hsl(${200+i*15},58%,36%))`;
+      return {
+        transform: `translateX(${x}px) translateZ(${z}px)`,
+        height: h, gradient: g,
+        status: isPend ? 'pending' : 'ready',
+        isNew, isRemoving: isRem,
+      };
     });
   }
 
   private doScaleUp(from: number, to: number, ready: number): void {
     this.lastAction = 'scale_up'; this.actionIcon = '▲';
-    this.podArray = this.makePods(to, ready, to - 1, false);
+    this.podArray   = this.makePods(to, ready, to - 1, false);
     this.showScaleUp = true;
     setTimeout(() => { this.showScaleUp = false; this.cdr.markForCheck(); }, 1600);
     this.flash(`Scaling UP  ${from} → ${to} pods`, 'announce-up');
@@ -410,7 +305,7 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
 
   private doScaleDown(from: number, to: number, ready: number): void {
     this.lastAction = 'scale_down'; this.actionIcon = '▼';
-    this.podArray = this.makePods(from, ready, -1, true);
+    this.podArray   = this.makePods(from, ready, -1, true);
     this.showScaleDown = true;
     setTimeout(() => {
       this.showScaleDown = false;
@@ -427,54 +322,53 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
 
   private maybeAddScalingEvent(d: FlaskDecision): void {
     const last = this.scalingEvents[0];
-    if (last && last.time === this.fmtTs(d.timestamp)) return; // dedup
-    const from = d.action === 'scale_up'   ? d.replicas - 1 : d.replicas + 1;
-    const to   = d.replicas;
+    if (last && last.time === this.fmtTs(d.timestamp)) return;
+    const from = d.action === 'scale_up' ? d.replicas - 1 : d.replicas + 1;
     this.scalingEvents.unshift({
-      action: d.action, icon: this.iconFor(d.action), from, to,
+      action:  d.action,
+      icon:    this.iconFor(d.action),
+      from, to: d.replicas,
       time:    this.fmtTs(d.timestamp),
-      tooltip: `${d.action.replace('_',' ')}  ${from}→${to}  conf ${(d.confidence*100).toFixed(1)}%`,
+      tooltip: `${d.action.replace('_',' ')}  ${from}→${d.replicas}  conf ${(d.confidence*100).toFixed(1)}%`,
     });
     if (this.scalingEvents.length > 20) this.scalingEvents.length = 20;
   }
 
-  // ── Charts ──────────────────────────────────────────────────────────────────
+  // ── Charts ────────────────────────────────────────────────────────────────
 
   private rebuildCharts(): void {
     const data = this.trainingSteps_history;
     if (data.length < 2) return;
 
-    // reward chart
-    const rewards = data.map(d => d.avg_reward);
+    const rewards = data.map((d: FlaskTrainingStep) => d.avg_reward);
     const mn = Math.min(...rewards), mx = Math.max(...rewards);
     this.chartMin = mn; this.chartMax = mx;
     const range = mx - mn || 1;
-    const rPts = rewards.map((v, i) => {
+    const rPts = rewards.map((v: number, i: number) => {
       const x = (i / (rewards.length - 1)) * this.CW;
       const y = this.CH - ((v - mn) / range) * (this.CH - 5) - 2.5;
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     });
     this.rewardPoints = rPts.join(' ');
-    const lx = rPts.at(-1)!.split(',')[0];
+    const lx = rPts[rPts.length - 1].split(',')[0];
     this.rewardArea = `M 0,${this.CH} L ${rPts.join(' L ')} L ${lx},${this.CH} Z`;
     const zn = (0 - mn) / range;
     this.zeroY = this.CH - zn * (this.CH - 5) - 2.5;
 
-    // value loss chart
-    const losses = data.map(d => d.value_loss);
+    const losses = data.map((d: FlaskTrainingStep) => d.value_loss);
     const lmn = Math.min(...losses), lmx = Math.max(...losses);
     const lRange = lmx - lmn || 1;
-    const lPts = losses.map((v, i) => {
+    const lPts = losses.map((v: number, i: number) => {
       const x = (i / (losses.length - 1)) * this.CW;
       const y = this.CH - ((v - lmn) / lRange) * (this.CH - 5) - 2.5;
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     });
     this.lossPoints = lPts.join(' ');
-    const llx = lPts.at(-1)!.split(',')[0];
+    const llx = lPts[lPts.length - 1].split(',')[0];
     this.lossArea = `M 0,${this.CH} L ${lPts.join(' L ')} L ${llx},${this.CH} Z`;
   }
 
-  // ── Gauge ───────────────────────────────────────────────────────────────────
+  // ── Gauge ─────────────────────────────────────────────────────────────────
 
   private updateGauge(conf: number): void {
     this.confidenceDash = `${conf * this.ARC} ${this.ARC}`;
@@ -484,7 +378,7 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
     this.needleY2 = 62 + 32 * Math.sin(rad);
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  // ── Template helpers ──────────────────────────────────────────────────────
 
   iconFor(a: string): string {
     return a === 'scale_up' ? '▲' : a === 'scale_down' ? '▼' : '=';
@@ -495,17 +389,11 @@ export class AgentAutoscalingComponent implements OnInit, OnDestroy {
   }
 
   labelFor(key: string): string {
-    // "default/my-k8s-app" → "my-k8s-app"
     return key.includes('/') ? key.split('/').slice(1).join('/') : key;
   }
 
   private fmtTs(ts: string): string {
     try { return new Date(ts).toLocaleTimeString(); } catch { return ts; }
-  }
-
-  private fmt(d: Date): string {
-    return [d.getHours(), d.getMinutes(), d.getSeconds()]
-      .map(n => n.toString().padStart(2,'0')).join(':');
   }
 
   trackByIdx(i: number): number { return i; }
