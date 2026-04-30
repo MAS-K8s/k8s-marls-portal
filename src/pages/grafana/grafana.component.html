@@ -22,14 +22,46 @@
             {{ r.label }}
           </button>
         </div>
-        <button class="refresh-btn" (click)="refreshAll()" [class.spinning]="refreshing">
+        <button class="refresh-btn" (click)="refreshAll()" [class.spinning]="refreshing" title="Refresh panels">
           <i class="pi pi-refresh"></i>
+        </button>
+        <!-- Credentials toggle -->
+        <button class="creds-btn" (click)="toggleCredentials()" title="Show / hide credentials">
+          <i class="pi" [class.pi-eye]="!showCredentials" [class.pi-eye-slash]="showCredentials"></i>
+          Credentials
         </button>
         <a class="open-btn" [href]="grafanaBase" target="_blank" rel="noopener">
           Open Grafana ↗
         </a>
       </div>
     </header>
+
+    <!-- ── CREDENTIALS PANEL ────────────────────────────────────────────── -->
+    <div class="creds-panel" *ngIf="showCredentials">
+      <div class="creds-panel__head">
+        <span class="creds-panel__icon">🔑</span>
+        <span class="creds-panel__title">Grafana Access Credentials</span>
+        <button class="creds-panel__close" (click)="toggleCredentials()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+      <div class="creds-panel__body">
+        <div class="cred-row">
+          <span class="cred-row__label">URL</span>
+          <a class="cred-row__val cred-row__val--link" [href]="credentials.url" target="_blank" rel="noopener">
+            {{ credentials.url }}
+          </a>
+        </div>
+        <div class="cred-row">
+          <span class="cred-row__label">Username</span>
+          <span class="cred-row__val">{{ credentials.username }}</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-row__label">Password</span>
+          <code class="cred-row__val cred-row__val--mono">{{ credentials.password }}</code>
+        </div>
+      </div>
+    </div>
 
     <!-- ── STATUS BANNER ────────────────────────────────────────────────── -->
     <div class="status-row">
@@ -42,7 +74,7 @@
       </div>
     </div>
 
-    <!-- ── SETUP GUIDE (shown when iframe blocked) ───────────────────────── -->
+    <!-- ── SETUP GUIDE ───────────────────────────────────────────────────── -->
     <div class="setup-guide" *ngIf="showSetupGuide">
       <div class="setup-guide__header" (click)="showSetupGuide = !showSetupGuide">
         <div class="setup-guide__icon">⚙</div>
@@ -66,7 +98,6 @@
 
     <!-- ── PANEL GRID ────────────────────────────────────────────────────── -->
     <div class="panel-grid">
-
       <div class="g-panel" *ngFor="let panel of panels"
            [class.g-panel--wide]="panel.wide">
         <div class="g-panel__head">
@@ -77,7 +108,7 @@
           <div class="g-panel__actions">
             <span class="g-badge g-badge--{{ panel.accent }}">{{ panel.metric }}</span>
             <a class="icon-link" [href]="panel.directUrl" target="_blank" rel="noopener"
-               title="Open in Grafana">
+               title="View in Grafana">
               <i class="pi pi-external-link"></i>
             </a>
           </div>
@@ -103,15 +134,16 @@
           </div>
         </div>
       </div>
-
-    </div><!-- /panel-grid -->
+      <!-- Ghost spacer: keeps last row aligned when panel count % 3 !== 0 -->
+      <div class="g-panel-spacer" aria-hidden="true"></div>
+    </div>
 
     <!-- ── FULL DASHBOARD EMBED ────────────────────────────────────────── -->
     <div class="g-panel g-panel--full">
       <div class="g-panel__head">
         <div>
           <div class="g-panel__title">Full Kubernetes Dashboard</div>
-          <div class="g-panel__sub">Complete Grafana dashboard — kiosk mode</div>
+          <div class="g-panel__sub">MARLS K8s Dashboard 1 — kiosk mode</div>
         </div>
         <div class="g-panel__actions">
           <button class="tr-btn tr-btn--active" (click)="toggleFullDash()">
@@ -128,7 +160,7 @@
           [src]="fullDashSafeUrl"
           class="g-iframe g-iframe--full"
           frameborder="0"
-          title="Kubernetes Full Dashboard">
+          title="MARLS Kubernetes Full Dashboard">
         </iframe>
         <div class="g-placeholder g-placeholder--full" *ngIf="!embeddingEnabled">
           <div class="g-placeholder__icon">📊</div>

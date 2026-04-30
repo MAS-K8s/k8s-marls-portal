@@ -7,7 +7,8 @@ import { TooltipModule } from 'primeng/tooltip';
 import { Subscription } from 'rxjs';
 
 import { ReplacePipe } from '../../shared/replace.pipe';
-
+// ↑ adjust path to wherever your shared ReplacePipe lives, e.g.
+//   '../../pipes/replace.pipe'   or   '../shared/replace.pipe'
 
 import {
   PodAutoscalingService,
