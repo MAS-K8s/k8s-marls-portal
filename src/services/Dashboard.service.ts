@@ -111,6 +111,7 @@ export class MarlsDashboardService implements OnDestroy {
 
   // ⬇ Change this to your Flask host if not localhost
   private readonly RL_URL = 'https://rl-agent.dev-sachin.co.uk';
+   private readonly API_Gateway_URL = 'https://marls.api-gateway.dev-sachin.co.uk';
   private readonly POLL_MS = 3000;
   private readonly RING = 30;
 
@@ -137,7 +138,7 @@ export class MarlsDashboardService implements OnDestroy {
   }
 
   private fetch(): void {
-    this.http.get<DashboardApiResponse>(`${this.RL_URL}/dashboard`).pipe(
+    this.http.get<DashboardApiResponse>(`${this.API_Gateway_URL}/gateway/marls-rl-agent/dashboard`).pipe(
       catchError((e: { message: string }) => {
         this.connectedSub$.next(false);
         this.loadingSub$.next(false);

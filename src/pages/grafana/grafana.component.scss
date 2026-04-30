@@ -45,9 +45,9 @@
 @keyframes spin       { to{transform:rotate(360deg)} }
 @keyframes blink      { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-.g-content { position:relative; z-index:1; padding:20px 24px; max-width:1700px; margin:0 auto; }
+.g-content { position:relative; z-index:1; padding:20px 24px; max-width:1700px; margin:0 auto; width:100%; box-sizing:border-box; overflow-x:hidden; }
 
-// ── Header ──────────────────────────────────────────────────────────────────
+// ── Header ───────────────────────────────────────────────────────────────────
 .g-header {
   display:flex; align-items:center; justify-content:space-between;
   padding:18px 24px; margin-bottom:20px;
@@ -61,7 +61,7 @@
     animation:shimmer 4s linear infinite;
   }
   &__left  { display:flex; align-items:center; gap:16px; }
-  &__right { display:flex; align-items:center; gap:12px; }
+  &__right { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 }
 .g-logo   { font-size:40px; }
 .g-title  { font-size:22px; font-weight:800; letter-spacing:-.5px; margin:0; span{color:var(--c-amber);} }
@@ -77,8 +77,8 @@
 }
 .refresh-btn {
   width:34px; height:34px; border-radius:8px; border:1px solid var(--c-border);
-  background:rgba(255,255,255,.04); color:var(--c-sub); cursor:pointer; display:flex; align-items:center; justify-content:center;
-  transition:all .2s;
+  background:rgba(255,255,255,.04); color:var(--c-sub); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all .2s;
   &:hover { border-color:var(--c-border2); color:var(--c-text); }
   &.spinning i { animation:spin .8s linear infinite; }
 }
@@ -89,7 +89,62 @@
   &:hover { background:rgba(245,158,11,.18); }
 }
 
-// ── Status row ─────────────────────────────────────────────────────────────
+// ── Credentials button ────────────────────────────────────────────────────────
+.creds-btn {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 14px; border-radius:8px; border:1px solid rgba(34,211,238,.25);
+  background:rgba(34,211,238,.08); color:var(--c-cyan); font-size:12px; font-weight:600;
+  cursor:pointer; font-family:var(--font); transition:all .2s;
+  &:hover { background:rgba(34,211,238,.15); border-color:rgba(34,211,238,.4); }
+}
+
+// ── Credentials panel ─────────────────────────────────────────────────────────
+.creds-panel {
+  margin-bottom:18px; padding:0;
+  background:rgba(34,211,238,.04); border:1px solid rgba(34,211,238,.2);
+  border-radius:var(--r-lg); overflow:hidden;
+  animation:fadeUp .3s ease both;
+
+  &__head {
+    display:flex; align-items:center; gap:12px; padding:14px 20px;
+    border-bottom:1px solid rgba(34,211,238,.12);
+    background:rgba(34,211,238,.06);
+  }
+  &__icon  { font-size:20px; }
+  &__title { font-size:14px; font-weight:700; color:var(--c-cyan); flex:1; }
+  &__close {
+    width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+    border-radius:6px; border:1px solid rgba(255,255,255,.08); background:none;
+    color:var(--c-muted); cursor:pointer; transition:all .2s;
+    &:hover { color:var(--c-text); border-color:var(--c-border2); }
+  }
+  &__body {
+    padding:16px 20px; display:flex; gap:24px; flex-wrap:wrap;
+  }
+}
+
+.cred-row {
+  display:flex; flex-direction:column; gap:4px;
+  &__label {
+    font-size:10px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--c-muted); font-family:var(--mono);
+  }
+  &__val {
+    font-size:13px; font-weight:600; color:var(--c-text);
+    &--mono {
+      font-family:var(--mono); font-size:12px;
+      background:rgba(0,0,0,.4); padding:6px 12px; border-radius:6px;
+      color:#86efac; border:1px solid rgba(134,239,172,.15);
+      user-select:all; // makes it easy to select & copy
+    }
+    &--link {
+      color:var(--c-cyan); text-decoration:none;
+      &:hover { text-decoration:underline; }
+    }
+  }
+}
+
+// ── Status row ────────────────────────────────────────────────────────────────
 .status-row {
   display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;
   animation:fadeUp .45s ease both; animation-delay:.05s;
@@ -103,7 +158,7 @@
   &__val   { font-size:15px; font-weight:700; font-family:var(--mono); margin-top:2px; }
 }
 
-// ── Setup guide ─────────────────────────────────────────────────────────────
+// ── Setup guide ──────────────────────────────────────────────────────────────
 .setup-guide {
   background:rgba(245,158,11,.05); border:1px solid rgba(245,158,11,.2);
   border-radius:var(--r-lg); margin-bottom:18px; overflow:hidden;
@@ -133,20 +188,48 @@
   &__desc  { font-size:11px; color:var(--c-muted); line-height:1.6; }
 }
 
-// ── Panel grid ──────────────────────────────────────────────────────────────
+// ── Panel grid ────────────────────────────────────────────────────────────────
 .panel-grid {
-  display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:16px;
-  animation:fadeUp .5s ease both; animation-delay:.15s;
-  @media(max-width:1200px){ grid-template-columns:repeat(2,1fr); }
-  @media(max-width:700px) { grid-template-columns:1fr; }
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  animation: fadeUp .5s ease both;
+  animation-delay: .15s;
+  // Ensure the grid never causes horizontal overflow
+  width: 100%;
+  box-sizing: border-box;
+
+  > .g-panel {
+    flex: 0 0 calc(33.333% - 11px);
+    max-width: calc(33.333% - 11px);
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  @media(max-width:1200px) {
+    > .g-panel {
+      flex: 0 0 calc(50% - 8px);
+      max-width: calc(50% - 8px);
+    }
+  }
+
+  @media(max-width:700px) {
+    > .g-panel {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+  }
 }
 
-// ── Shared panel styles ──────────────────────────────────────────────────────
+.g-panel-spacer { display: none; }
+
+// ── Shared panel styles ───────────────────────────────────────────────────────
 .g-panel {
   background:var(--c-panel); border:1px solid var(--c-border); border-radius:var(--r-lg);
   backdrop-filter:blur(20px); overflow:hidden; transition:border-color .3s;
   &:hover { border-color:var(--c-border2); }
-  &--wide { grid-column:span 2; @media(max-width:1200px){ grid-column:span 1; } }
+  // --wide removed: all panels are equal width via flex
   &--full { margin-bottom:16px; animation:fadeUp .5s ease both; animation-delay:.2s; }
   &__head {
     display:flex; align-items:center; justify-content:space-between;
@@ -165,7 +248,7 @@
   &:hover { border-color:var(--c-border2); color:var(--c-text); }
 }
 
-// ── Badge ────────────────────────────────────────────────────────────────────
+// ── Badge ─────────────────────────────────────────────────────────────────────
 .g-badge {
   display:inline-flex; align-items:center; gap:5px;
   padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600;
@@ -187,7 +270,7 @@
 .g-placeholder {
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   height:200px; gap:8px; padding:20px;
-  background:rgba(255,255,255,.015); border-radius:0;
+  background:rgba(255,255,255,.015);
   &--full { height:300px; }
   &__icon  { font-size:36px; opacity:.5; }
   &__title { font-size:14px; font-weight:600; color:var(--c-sub); }
@@ -203,9 +286,34 @@
 
 // ── API panel ─────────────────────────────────────────────────────────────────
 .api-panel { margin-bottom:16px; animation:fadeUp .5s ease both; animation-delay:.25s; }
-.api-body  { padding:18px; display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
-  @media(max-width:1200px){ grid-template-columns:repeat(2,1fr); }
-  @media(max-width:700px) { grid-template-columns:1fr; }
+.api-body  {
+  padding:18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
+
+  > .api-card {
+    flex: 0 0 calc(33.333% - 10px);
+    max-width: calc(33.333% - 10px);
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  @media(max-width:1200px) {
+    > .api-card {
+      flex: 0 0 calc(50% - 7px);
+      max-width: calc(50% - 7px);
+    }
+  }
+
+  @media(max-width:700px) {
+    > .api-card {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+  }
 }
 .api-card {
   padding:14px 16px; background:rgba(255,255,255,.03); border-radius:var(--r);
@@ -225,7 +333,7 @@
   }
 }
 
-// ── Footer ─────────────────────────────────────────────────────────────────
+// ── Footer ────────────────────────────────────────────────────────────────────
 .g-footer {
   text-align:center; padding:20px 0; border-top:1px solid rgba(255,255,255,.04);
   font-size:11px; color:var(--c-muted); font-family:var(--mono);

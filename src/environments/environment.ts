@@ -3,6 +3,7 @@ export const environment = {
   serverUrl: 'https://user-mgt-service.dev-sachin.co.uk/User-Mgt/api',
   OrganizeUrl: 'http://127.0.0.1:8888/Organizations/api',
   rlAgentUrl:    'https://rl-agent.dev-sachin.co.uk',
+  apiGateway: 'https://marls.api-gateway.dev-sachin.co.uk',
   pollIntervalMs: 3000,
   LogoLight: '',
   LogoDark: 'https://i.postimg.cc/9f5qsBh6/images.jpg',

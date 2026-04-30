@@ -11,6 +11,7 @@ type EntityArrayResponseType = HttpResponse<UserDto[]>;
 @Injectable()
 export class UserService {
   resourceUrl = environment.serverUrl;
+  APIGateway = environment.apiGateway
 
   headers = {
     AuthToken:
@@ -59,7 +60,8 @@ export class UserService {
 
   findAllUser(params: any): Observable<HttpResponse<UserDto[]>> {
     return this.http.get<UserDto[]>(
-      `${this.resourceUrl}/FindallUser`,
+      // `${this.resourceUrl}/FindallUser`,
+      `${this.APIGateway}/gateway/user-mgt-service/findall/users`,
       { params, observe: 'response', headers: this.headers }
     );
   }
